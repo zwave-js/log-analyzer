@@ -2,7 +2,7 @@ import { useReducer, useCallback, useEffect } from 'react';
 import { appReducer } from './app-reducer';
 import { initialState, selectors, type ChatMessage } from './app-state';
 import { GeminiLogAnalyzer, GEMINI_MODEL_ID } from './ai/gemini-client';
-import { LogTransformPipeline } from './log-processor/simple';
+import { LogTransformPipeline } from './log-processor';
 import type { TransformedLog } from './types';
 
 export function useAppState() {
@@ -92,11 +92,9 @@ export function useAppState() {
       try {
         const pipeline = new LogTransformPipeline();
         const entries = await pipeline.processLogContent(content);
-        const summary = pipeline.generateSummary(entries);
 
         const transformedLog: TransformedLog = {
           entries,
-          summary
         };
 
         dispatch({ type: 'SET_PROCESSED_LOGS', payload: transformedLog });

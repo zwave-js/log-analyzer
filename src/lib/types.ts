@@ -109,16 +109,6 @@ export type SemanticLogInfo =
 
 export interface TransformedLog {
 	entries: SemanticLogInfo[];
-	summary: {
-		totalEntries: number;
-		timeRange: {
-			start: string;
-			end: string;
-		};
-		semanticBreakdown: Record<SemanticLogKind, number>;
-		errorCount: number;
-		warningCount: number;
-	};
 }
 
 export interface AnalysisRequest {

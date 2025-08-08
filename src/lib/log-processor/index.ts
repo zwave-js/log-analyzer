@@ -3,7 +3,6 @@ import type {
   UnformattedLogInfo,
   LogInfoPayload,
   SemanticLogInfo,
-  TransformedLog,
 } from "../types";
 import { SemanticLogKind } from "../types";
 
@@ -437,7 +436,7 @@ export class ClassifyLogEntry extends TransformStream<
         }
       | undefined {
       const pattern =
-        /^(?<property>[^\[\:]+)(?:\[(?<key>[^\[]+)\])? \(was (?<prev>[^\)]+?)\)(?:\s*\[Endpoint (?<endpoint>\d+)\])?$/;
+        /^(?<property>[^[:]+)(?:\[(?<key>[^[]+)\])? \(was (?<prev>[^)]+?)\)(?:\s*\[Endpoint (?<endpoint>\d+)\])?$/;
       const match = message.match(pattern);
       if (!match) return undefined;
 
@@ -773,34 +772,5 @@ export class LogTransformPipeline {
       .pipeTo(writableStream);
 
     return entries;
-  }
-
-  generateSummary(entries: SemanticLogInfo[]): TransformedLog["summary"] {
-    const semanticBreakdown: Record<SemanticLogKind, number> = {} as any;
-    let errorCount = 0;
-    let warningCount = 0;
-
-    for (const entry of entries) {
-      semanticBreakdown[entry.kind] = (semanticBreakdown[entry.kind] || 0) + 1;
-
-      // Count errors and warnings based on various conditions
-      if (entry.kind === SemanticLogKind.IncomingCommand && entry.invalid) {
-        errorCount++;
-      }
-      if (entry.kind === SemanticLogKind.SendDataResponse && !entry.success) {
-        errorCount++;
-      }
-    }
-
-    return {
-      totalEntries: entries.length,
-      timeRange: {
-        start: entries[0]?.timestamp || "",
-        end: entries[entries.length - 1]?.timestamp || "",
-      },
-      semanticBreakdown,
-      errorCount,
-      warningCount,
-    };
   }
 }
