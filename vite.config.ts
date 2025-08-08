@@ -5,7 +5,7 @@ import svgr from 'vite-plugin-svgr'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), svgr()],
-  base: '/zwave-js-log-analyzer/',
+  base: '/log-analyzer/',
   build: {
     outDir: 'dist',
     sourcemap: true,
