@@ -1,5 +1,5 @@
 {
-  "name": "zwave-js-log-analyzer",
+  "name": "@zwave-js/log-analyzer",
   "private": true,
   "version": "0.0.0",
   "type": "module",

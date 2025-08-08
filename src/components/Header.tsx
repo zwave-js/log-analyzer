@@ -89,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
         )}
         <IconButton
           color="inherit"
-          href="https://github.com/zwave-js/zwave-js-log-analyzer"
+          href="https://github.com/zwave-js/log-analyzer"
           target="_blank"
           rel="noopener noreferrer"
           sx={{ color: "text.primary" }}
