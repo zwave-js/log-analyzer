@@ -76,7 +76,7 @@ const log = await fs.readFile(filenameStr, "utf8");
 const pipeline = new LogTransformPipeline();
 const transformedLog = await pipeline.processLogContent(log);
 
-await fs.truncate(filenameStr + ".jsonl", 0);
+await fs.rm(filenameStr + ".jsonl", { force: true });
 
 for (const entry of transformedLog) {
   const line = argv.pretty
