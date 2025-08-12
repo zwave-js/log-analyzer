@@ -1,0 +1,7 @@
+{
+	"plugins": ["@alcalzone/release-script-plugin-license"],
+	"changelogFilename": "CHANGELOG.md",
+	"lerna": false,
+	"packageFilenames": ["package.json"],
+	"extraFiles": []
+}

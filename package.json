@@ -1,43 +1,83 @@
 {
-  "name": "@zwave-js/log-analyzer",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "test": "test/debug.sh"
-  },
-  "dependencies": {
-    "@google/genai": "^1.13.0",
-    "@zwave-js/core": "^15.10.0",
-    "yargs": "^18.0.0"
-  },
-  "devDependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
-    "@eslint/js": "^9.32.0",
-    "@mui/icons-material": "^7.3.1",
-    "@mui/material": "^7.3.1",
-    "@types/node": "^22.17.1",
-    "@types/react": "^19.1.9",
-    "@types/react-dom": "^19.1.7",
-    "@types/yargs": "^17.0.33",
-    "@vitejs/plugin-react": "^4.7.0",
-    "clsx": "^2.1.1",
-    "eslint": "^9.32.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.20",
-    "globals": "^16.3.0",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "react-markdown": "^10.1.0",
-    "tsx": "^4.20.3",
-    "typescript": "~5.8.3",
-    "typescript-eslint": "^8.39.0",
-    "vite": "^7.1.0",
-    "vite-plugin-svgr": "^4.3.0"
-  }
+	"name": "@zwave-js/log-analyzer",
+	"version": "0.0.1",
+	"description": "AI powered log analyzer for Z-Wave JS",
+	"keywords": [
+		"zwave",
+		"z-wave",
+		"log",
+		"analyzer"
+	],
+	"license": "MIT",
+	"author": {
+		"name": "AlCalzone",
+		"email": "d.griesel@gmx.net"
+	},
+	"homepage": "https://zwave-js.github.io/log-analyzer/",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/zwave-js/log-analyzer.git"
+	},
+	"bugs": {
+		"url": "https://github.com/zwave-js/log-analyzer/issues"
+	},
+	"type": "module",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"bin": {
+		"zwave-log-analyzer": "./dist/cli.js"
+	},
+	"files": [
+		"dist/cli.js",
+		"dist/index.{js,d.ts}",
+		"dist/lib/ai/*.{js,d.ts}",
+		"dist/lib/log-processor/*.{js,d.ts}",
+		"dist/lib/types.{js,d.ts}",
+		"dist/lib/zwave-log-analyzer.{js,d.ts}",
+		"README.md",
+		"LICENSE"
+	],
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc -b && vite build && npm run build:cli",
+		"build:cli": "tsc -p tsconfig.node.json",
+		"lint": "eslint . --ext .ts,.tsx",
+		"lint:fix": "eslint . --ext .ts,.tsx --fix",
+		"format:check": "prettier .",
+		"format": "prettier -w .",
+		"preview": "vite preview",
+		"test": "test/debug.sh"
+	},
+	"dependencies": {
+		"@google/genai": "^1.13.0",
+		"@zwave-js/core": "^15.10.0",
+		"yargs": "^18.0.0"
+	},
+	"devDependencies": {
+		"@alcalzone/release-script": "~3.8.0",
+		"@emotion/react": "^11.14.0",
+		"@emotion/styled": "^11.14.1",
+		"@eslint/js": "^9.32.0",
+		"@mui/icons-material": "^7.3.1",
+		"@mui/material": "^7.3.1",
+		"@types/node": "^22.17.1",
+		"@types/react": "^19.1.9",
+		"@types/react-dom": "^19.1.7",
+		"@types/yargs": "^17.0.33",
+		"@vitejs/plugin-react": "^4.7.0",
+		"clsx": "^2.1.1",
+		"eslint": "^9.32.0",
+		"eslint-plugin-react-hooks": "^5.2.0",
+		"eslint-plugin-react-refresh": "^0.4.20",
+		"globals": "^16.3.0",
+		"prettier": "^3.4.2",
+		"react": "^19.1.1",
+		"react-dom": "^19.1.1",
+		"react-markdown": "^10.1.0",
+		"tsx": "^4.20.3",
+		"typescript": "~5.8.3",
+		"typescript-eslint": "^8.39.0",
+		"vite": "^7.1.0",
+		"vite-plugin-svgr": "^4.3.0"
+	}
 }

@@ -1,81 +1,82 @@
 /* Basic reset and global styles - matching Z-Wave JS Playground */
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+	font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+	line-height: 1.5;
+	font-weight: 400;
 
-  color-scheme: light dark;
-  color: #f0f6fc;
-  background-color: #0d1117;
+	color-scheme: light dark;
+	color: #f0f6fc;
+	background-color: #0d1117;
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+	font-synthesis: none;
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 
 * {
-  box-sizing: border-box;
+	box-sizing: border-box;
 }
 
 body {
-  margin: 0;
-  padding: 0;
-  min-width: 320px;
-  min-height: 100vh;
+	margin: 0;
+	padding: 0;
+	min-width: 320px;
+	min-height: 100vh;
 }
 
 .prose h1 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
+	font-size: 1.5rem;
+	font-weight: 600;
+	margin-bottom: 1rem;
 }
 
 .prose h2 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 0.75rem;
-  margin-top: 1.5rem;
+	font-size: 1.25rem;
+	font-weight: 600;
+	margin-bottom: 0.75rem;
+	margin-top: 1.5rem;
 }
 
 .prose h3 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  margin-top: 1rem;
+	font-size: 1.125rem;
+	font-weight: 600;
+	margin-bottom: 0.5rem;
+	margin-top: 1rem;
 }
 
 .prose p {
-  margin-bottom: 1rem;
-  line-height: 1.6;
+	margin-bottom: 1rem;
+	line-height: 1.6;
 }
 
-.prose ul, .prose ol {
-  margin-bottom: 1rem;
-  padding-left: 1.5rem;
+.prose ul,
+.prose ol {
+	margin-bottom: 1rem;
+	padding-left: 1.5rem;
 }
 
 .prose li {
-  margin-bottom: 0.25rem;
+	margin-bottom: 0.25rem;
 }
 
 .prose code {
-  background-color: rgb(243 244 246);
-  padding: 0.125rem 0.25rem;
-  border-radius: 0.25rem;
-  font-family: ui-monospace, monospace;
+	background-color: rgb(243 244 246);
+	padding: 0.125rem 0.25rem;
+	border-radius: 0.25rem;
+	font-family: ui-monospace, monospace;
 }
 
 .prose pre {
-  background-color: rgb(31 41 55);
-  color: rgb(249 250 251);
-  padding: 1rem;
-  border-radius: 0.5rem;
-  overflow-x: auto;
-  margin-bottom: 1rem;
+	background-color: rgb(31 41 55);
+	color: rgb(249 250 251);
+	padding: 1rem;
+	border-radius: 0.5rem;
+	overflow-x: auto;
+	margin-bottom: 1rem;
 }
 
 .prose pre code {
-  background-color: transparent;
-  padding: 0;
+	background-color: transparent;
+	padding: 0;
 }

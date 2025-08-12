@@ -31,37 +31,36 @@ export const SemanticLogKind = {
 	Other: "OTHER",
 } as const;
 
-export type SemanticLogKind = typeof SemanticLogKind[keyof typeof SemanticLogKind];
+export type SemanticLogKind =
+	(typeof SemanticLogKind)[keyof typeof SemanticLogKind];
 
-export type SemanticLogInfo =
-	& {
-		timestamp: string;
-	}
-	& (
-		| {
+export type SemanticLogInfo = {
+	timestamp: string;
+} & (
+	| {
 			kind: "INCOMING_COMMAND";
 			nodeId: number;
 			rssi?: string;
 			invalid?: boolean;
 			payload: LogInfoPayload;
-		}
-		| {
+	  }
+	| {
 			kind: "SEND_DATA_REQUEST";
 			nodeId: number;
 			transmitOptions: string;
 			callbackId: number;
 			payload: LogInfoPayload;
-		}
-		| {
+	  }
+	| {
 			kind: "SEND_DATA_RESPONSE";
 			success: boolean;
-		}
-		| {
+	  }
+	| {
 			kind: "SEND_DATA_CALLBACK";
 			callbackId: number;
 			attributes: Record<string, string | number | boolean>;
-		}
-		| {
+	  }
+	| {
 			kind: "VALUE_ADDED";
 			nodeId: number;
 			endpointIndex?: number;
@@ -69,8 +68,8 @@ export type SemanticLogInfo =
 			property: string;
 			propertyKey?: string;
 			value: string | number | boolean;
-		}
-		| {
+	  }
+	| {
 			kind: "VALUE_UPDATED";
 			nodeId: number;
 			endpointIndex?: number;
@@ -79,8 +78,8 @@ export type SemanticLogInfo =
 			propertyKey?: string;
 			prevValue: string | number | boolean;
 			value: string | number | boolean;
-		}
-		| {
+	  }
+	| {
 			kind: "VALUE_REMOVED";
 			nodeId: number;
 			endpointIndex?: number;
@@ -88,24 +87,24 @@ export type SemanticLogInfo =
 			property: string;
 			propertyKey?: string;
 			prevValue: string | number | boolean;
-		}
-		| {
+	  }
+	| {
 			kind: "METADATA_UPDATED";
 			nodeId: number;
 			endpointIndex?: number;
 			commandClass: string;
 			property: string;
 			propertyKey?: string;
-		}
-		// Used for all log entries where we know the general kind, but not what it is
-		| ({
+	  }
+	// Used for all log entries where we know the general kind, but not what it is
+	| ({
 			kind: "REQUEST" | "RESPONSE" | "CALLBACK";
-		} & Omit<UnformattedLogInfo, "label">)
-		// Used for all log entries that have not been classified
-		| ({
+	  } & Omit<UnformattedLogInfo, "label">)
+	// Used for all log entries that have not been classified
+	| ({
 			kind: "OTHER";
-		} & UnformattedLogInfo)
-	);
+	  } & UnformattedLogInfo)
+);
 
 export interface TransformedLog {
 	entries: SemanticLogInfo[];
