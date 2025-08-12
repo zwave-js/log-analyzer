@@ -470,7 +470,7 @@ export class ClassifyLogEntry extends TransformStream<
 			  }
 			| undefined {
 			const pattern =
-				/^(?<property>[^\[\:]+)(?:\[(?<key>[^\[]+)\])?: metadata updated(?:\s*\[Endpoint (?<endpoint>\d+)\])?$/;
+				/^(?<property>[^[:]+)(?:\[(?<key>[^[]+)\])?: metadata updated(?:\s*\[Endpoint (?<endpoint>\d+)\])?$/;
 			const match = message.match(pattern);
 			if (!match) return undefined;
 

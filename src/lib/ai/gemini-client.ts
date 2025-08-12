@@ -15,7 +15,7 @@ export class GeminiLogAnalyzer {
 	private modelName: string;
 	private systemPromptFile: GeminiFileInfo | null = null;
 	private logFile: GeminiFileInfo | null = null;
-	private chatSession: Chat | null = null; // eslint-disable-line @typescript-eslint/no-explicit-any
+	private chatSession: Chat | null = null;
 
 	constructor(config: GeminiConfig) {
 		this.genAI = new GoogleGenAI({ apiKey: config.apiKey });

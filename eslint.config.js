@@ -13,7 +13,7 @@ export default tseslint.config(
 		extends: [
 			js.configs.recommended,
 			...tseslint.configs.recommended,
-			reactHooks.configs.recommended,
+			reactHooks.configs["recommended-latest"],
 		],
 		languageOptions: {
 			ecmaVersion: 2020,
@@ -27,6 +27,7 @@ export default tseslint.config(
 				"warn",
 				{ allowConstantExport: true },
 			],
+			"@typescript-eslint/no-explicit-any": "off",
 		},
 	},
 	{
