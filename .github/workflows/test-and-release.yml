@@ -113,7 +113,7 @@ jobs:
         node-version: [22]
 
     permissions:
-      contents: read
+      contents: write
       pages: write
       id-token: write
 
