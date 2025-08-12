@@ -1,7 +1,6 @@
 {
-	"plugins": ["@alcalzone/release-script-plugin-license"],
-	"changelogFilename": "CHANGELOG.md",
-	"lerna": false,
-	"packageFilenames": ["package.json"],
-	"extraFiles": []
+	"plugins": ["license"],
+	"exec": {
+		"before_commit": "npm run build"
+	}
 }

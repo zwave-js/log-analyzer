@@ -63,3 +63,9 @@ for await (const chunk of analyzer.continueAnalysis(
 	process.stdout.write(chunk);
 }
 ```
+
+## Changelog
+
+### 0.0.0 (TBD)
+
+- Initial release
