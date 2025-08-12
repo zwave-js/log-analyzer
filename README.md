@@ -65,7 +65,6 @@ for await (const chunk of analyzer.continueAnalysis(
 ```
 
 ## Changelog
-
-### 0.0.0 (TBD)
+### 0.0.1 (2025-08-12)
 
 - Initial release
