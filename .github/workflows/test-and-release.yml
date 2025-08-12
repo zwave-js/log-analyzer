@@ -66,9 +66,10 @@ jobs:
   # ===================
 
   build_pages:
+    # Trigger this step only when a commit on master is tagged with a version number
     if: |
       github.event_name == 'push' &&
-      startsWith(github.ref, 'refs/heads/release/')
+      startsWith(github.ref, 'refs/tags/v')
 
     runs-on: ubuntu-latest
     steps:
@@ -99,9 +100,10 @@ jobs:
 
   # Publish the package to npm and Github Pages when a release branch is pushed
   publish:
+    # Trigger this step only when a commit on master is tagged with a version number
     if: |
       github.event_name == 'push' &&
-      startsWith(github.ref, 'refs/heads/release/')
+      startsWith(github.ref, 'refs/tags/v')
 
     needs: [lint, build_cli, build_pages]
 
