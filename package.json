@@ -25,7 +25,7 @@
     "url": "https://github.com/zwave-js/log-analyzer/issues"
   },
   "type": "module",
-  "module": "./dist/index.js",
+  "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
     "zwave-log-analyzer": "./dist/cli.js"
