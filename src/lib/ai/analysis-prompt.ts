@@ -50,6 +50,8 @@ Log files are formatted as JSON-lines documents with one log entry per line. The
 - VALUE_UPDATED
 - VALUE_REMOVED
 - METADATA_UPDATED
+- BACKGROUND_RSSI
+- BACKGROUND_RSSI_SUMMARY
 - OTHER
 
 ## Different log entries
@@ -68,6 +70,7 @@ Commands that are not sent to a device but instead indicate communication with t
 
 Z-Wave communication is wireless, and both the signal strength (RSSI) and the signal noise (background RSSI) are important for the reliability of the communication. Z-Wave JS regularly measures the background RSSI, and incoming commands may contain the RSSI of the command itself.
 
+The background RSSI is reported per channel as either BACKGROUND_RSSI entries for single measurements, or as BACKGROUND_RSSI_SUMMARY entries as an aggregate of multiple successive measurements.
 It is desirable for the background RSSI to be as low as possible, ideally close to the sensitivity of the hardware, which is:
 
 - -94 dBm for 500 series controllers
