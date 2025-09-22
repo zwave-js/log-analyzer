@@ -762,6 +762,111 @@ export class ClassifyLogEntry extends TransformStream<
 	}
 }
 
+/** Merges GetBackgroundRSSI requests and responses into single entries */
+export class DetectBackgroundRSSICalls extends TransformStream<
+	SemanticLogInfo,
+	SemanticLogInfo
+> {
+	constructor() {
+		let pendingRequest: SemanticLogInfo | undefined;
+		const bufferedEntries: SemanticLogInfo[] = [];
+
+		function parseTimestamp(timestamp: string): number {
+			return new Date(timestamp).getTime();
+		}
+
+		function flushBufferedEntries(
+			controller: TransformStreamDefaultController<SemanticLogInfo>,
+		) {
+			for (const entry of bufferedEntries) {
+				controller.enqueue(entry);
+			}
+			bufferedEntries.length = 0;
+		}
+
+		const transformer: Transformer<SemanticLogInfo, SemanticLogInfo> = {
+			transform(chunk, controller) {
+				// Check if this is a GetBackgroundRSSI request
+				if (
+					chunk.kind === "REQUEST" &&
+					chunk.direction === "outbound" &&
+					chunk.message === "[GetBackgroundRSSI]"
+				) {
+					// If we already have a pending request, flush it and start fresh
+					this.flush!(controller);
+
+					// Store the new request as pending
+					pendingRequest = chunk;
+					return;
+				}
+
+				if (!pendingRequest) {
+					// No pending request, pass through immediately
+					controller.enqueue(chunk);
+					return;
+				}
+
+				const requestTime = parseTimestamp(pendingRequest.timestamp);
+				const currentTime = parseTimestamp(chunk.timestamp);
+				const timeDiff = currentTime - requestTime;
+
+				// If more than 200ms have passed, flush everything
+				if (timeDiff > 200) {
+					this.flush!(controller);
+					controller.enqueue(chunk);
+					return;
+				}
+
+				// Check if this is the matching GetBackgroundRSSI response
+				if (
+					chunk.kind === "RESPONSE" &&
+					chunk.direction === "inbound" &&
+					typeof chunk.message === "object" &&
+					chunk.message.message === "GetBackgroundRSSI" &&
+					chunk.message.attributes
+				) {
+					// Flush all buffered entries first
+					flushBufferedEntries(controller);
+
+					// Create and emit the merged entry (do not emit the original request)
+					const attributes = chunk.message.attributes;
+					const mergedEntry: SemanticLogInfo = {
+						kind: "BACKGROUND_RSSI",
+						timestamp: pendingRequest.timestamp,
+						"channel 0": attributes["channel 0"] as string,
+						"channel 1": attributes["channel 1"] as string,
+						...(attributes["channel 2"]
+							? { "channel 2": attributes["channel 2"] as string }
+							: {}),
+						...(attributes["channel 3"]
+							? { "channel 3": attributes["channel 3"] as string }
+							: {}),
+					};
+
+					controller.enqueue(mergedEntry);
+					pendingRequest = undefined;
+					return;
+				}
+
+				// No the response we were looking for - buffer this entry while we wait for a response
+				bufferedEntries.push(chunk);
+				return;
+			},
+
+			flush(controller) {
+				// Emit any remaining pending request and buffered entries
+				if (pendingRequest) {
+					controller.enqueue(pendingRequest);
+				}
+				pendingRequest = undefined;
+				flushBufferedEntries(controller);
+			},
+		};
+
+		super(transformer);
+	}
+}
+
 /** Main pipeline class that processes log content through all transform stages */
 export class LogTransformPipeline {
 	async processLogContent(logContent: string): Promise<SemanticLogInfo[]> {
@@ -773,6 +878,7 @@ export class LogTransformPipeline {
 		const parseNestedStructures = new ParseNestedStructures();
 		const filterLogEntries = new FilterLogEntries();
 		const classifyLogEntry = new ClassifyLogEntry();
+		const detectBackgroundRSSICalls = new DetectBackgroundRSSICalls();
 
 		// Create a writable stream to collect results
 		const writableStream = new WritableStream<SemanticLogInfo>({
@@ -795,6 +901,7 @@ export class LogTransformPipeline {
 			.pipeThrough(parseNestedStructures)
 			.pipeThrough(filterLogEntries)
 			.pipeThrough(classifyLogEntry)
+			.pipeThrough(detectBackgroundRSSICalls)
 			.pipeTo(writableStream);
 
 		return entries;

@@ -27,6 +27,7 @@ export const SemanticLogKind = {
 	ValueUpdated: "VALUE_UPDATED",
 	ValueRemoved: "VALUE_REMOVED",
 	MetadataUpdated: "METADATA_UPDATED",
+	BackgroundRSSI: "BACKGROUND_RSSI",
 	// Used for all log entries where we know the general kind, but not what it is
 	Other: "OTHER",
 } as const;
@@ -95,6 +96,13 @@ export type SemanticLogInfo = {
 			commandClass: string;
 			property: string;
 			propertyKey?: string;
+	  }
+	| {
+			kind: "BACKGROUND_RSSI";
+			"channel 0": string;
+			"channel 1": string;
+			"channel 2"?: string;
+			"channel 3"?: string;
 	  }
 	// Used for all log entries where we know the general kind, but not what it is
 	| ({
