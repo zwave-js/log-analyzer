@@ -28,6 +28,7 @@ export const SemanticLogKind = {
 	ValueRemoved: "VALUE_REMOVED",
 	MetadataUpdated: "METADATA_UPDATED",
 	BackgroundRSSI: "BACKGROUND_RSSI",
+	BackgroundRSSISummary: "BACKGROUND_RSSI_SUMMARY",
 	// Used for all log entries where we know the general kind, but not what it is
 	Other: "OTHER",
 } as const;
@@ -103,6 +104,39 @@ export type SemanticLogInfo = {
 			"channel 1": string;
 			"channel 2"?: string;
 			"channel 3"?: string;
+	  }
+	| {
+			// FIXME: This entry does not need an extra timestamp
+			kind: "BACKGROUND_RSSI_SUMMARY";
+			samples: number;
+			time_range: {
+				start: string;
+				end: string;
+			};
+			"channel 0": {
+				min: { value: number; timestamp: string };
+				max: { value: number; timestamp: string };
+				median: number;
+				stddev: number;
+			};
+			"channel 1": {
+				min: { value: number; timestamp: string };
+				max: { value: number; timestamp: string };
+				median: number;
+				stddev: number;
+			};
+			"channel 2"?: {
+				min: { value: number; timestamp: string };
+				max: { value: number; timestamp: string };
+				median: number;
+				stddev: number;
+			};
+			"channel 3"?: {
+				min: { value: number; timestamp: string };
+				max: { value: number; timestamp: string };
+				median: number;
+				stddev: number;
+			};
 	  }
 	// Used for all log entries where we know the general kind, but not what it is
 	| ({
