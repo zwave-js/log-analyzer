@@ -762,6 +762,274 @@ export class ClassifyLogEntry extends TransformStream<
 	}
 }
 
+/** Merges GetBackgroundRSSI requests and responses into single entries */
+export class DetectBackgroundRSSICalls extends TransformStream<
+	SemanticLogInfo,
+	SemanticLogInfo
+> {
+	constructor() {
+		let pendingRequest: SemanticLogInfo | undefined;
+		const bufferedEntries: SemanticLogInfo[] = [];
+
+		function parseTimestamp(timestamp: string): number {
+			return new Date(timestamp).getTime();
+		}
+
+		function flushBufferedEntries(
+			controller: TransformStreamDefaultController<SemanticLogInfo>,
+		) {
+			for (const entry of bufferedEntries) {
+				controller.enqueue(entry);
+			}
+			bufferedEntries.length = 0;
+		}
+
+		const transformer: Transformer<SemanticLogInfo, SemanticLogInfo> = {
+			transform(chunk, controller) {
+				// Check if this is a GetBackgroundRSSI request
+				if (
+					chunk.kind === "REQUEST" &&
+					chunk.direction === "outbound" &&
+					chunk.message === "[GetBackgroundRSSI]"
+				) {
+					// If we already have a pending request, flush it and start fresh
+					this.flush!(controller);
+
+					// Store the new request as pending
+					pendingRequest = chunk;
+					return;
+				}
+
+				if (!pendingRequest) {
+					// No pending request, pass through immediately
+					controller.enqueue(chunk);
+					return;
+				}
+
+				const requestTime = parseTimestamp(pendingRequest.timestamp);
+				const currentTime = parseTimestamp(chunk.timestamp);
+				const timeDiff = currentTime - requestTime;
+
+				// If more than 200ms have passed, flush everything
+				if (timeDiff > 200) {
+					this.flush!(controller);
+					controller.enqueue(chunk);
+					return;
+				}
+
+				// Check if this is the matching GetBackgroundRSSI response
+				if (
+					chunk.kind === "RESPONSE" &&
+					chunk.direction === "inbound" &&
+					typeof chunk.message === "object" &&
+					chunk.message.message === "GetBackgroundRSSI" &&
+					chunk.message.attributes
+				) {
+					// Flush all buffered entries first
+					flushBufferedEntries(controller);
+
+					// Create and emit the merged entry (do not emit the original request)
+					const attributes = chunk.message.attributes;
+					const mergedEntry: SemanticLogInfo = {
+						kind: "BACKGROUND_RSSI",
+						timestamp: pendingRequest.timestamp,
+						"channel 0": attributes["channel 0"] as string,
+						"channel 1": attributes["channel 1"] as string,
+						...(attributes["channel 2"]
+							? { "channel 2": attributes["channel 2"] as string }
+							: {}),
+						...(attributes["channel 3"]
+							? { "channel 3": attributes["channel 3"] as string }
+							: {}),
+					};
+
+					controller.enqueue(mergedEntry);
+					pendingRequest = undefined;
+					return;
+				}
+
+				// No the response we were looking for - buffer this entry while we wait for a response
+				bufferedEntries.push(chunk);
+				return;
+			},
+
+			flush(controller) {
+				// Emit any remaining pending request and buffered entries
+				if (pendingRequest) {
+					controller.enqueue(pendingRequest);
+				}
+				pendingRequest = undefined;
+				flushBufferedEntries(controller);
+			},
+		};
+
+		super(transformer);
+	}
+}
+
+/** Aggregates consecutive BACKGROUND_RSSI entries into statistical summaries */
+export class AggregateBackgroundRSSI extends TransformStream<
+	SemanticLogInfo,
+	SemanticLogInfo
+> {
+	constructor() {
+		const bufferedRSSIEntries: SemanticLogInfo[] = [];
+
+		function parseRSSIValue(rssiString: string): number {
+			// Parse "-107 dBm" -> -107
+			return parseInt(rssiString, 10);
+		}
+
+		function calculateMedian(values: number[]): number {
+			const sorted = [...values].sort((a, b) => a - b);
+			const mid = Math.floor(sorted.length / 2);
+			if (sorted.length % 2 === 0) {
+				return (sorted[mid - 1] + sorted[mid]) / 2;
+			}
+			return sorted[mid];
+		}
+
+		function calculateStdDev(values: number[]): number {
+			const mean =
+				values.reduce((sum, val) => sum + val, 0) / values.length;
+			const variance =
+				values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) /
+				values.length;
+			return Math.sqrt(variance);
+		}
+
+		function findMinMaxWithTimestamp(
+			values: number[],
+			timestamps: string[],
+		): {
+			min: { value: number; timestamp: string };
+			max: { value: number; timestamp: string };
+		} {
+			let minValue = values[0];
+			let maxValue = values[0];
+			let minTimestamp = timestamps[0];
+			let maxTimestamp = timestamps[0];
+
+			for (let i = 1; i < values.length; i++) {
+				if (values[i] < minValue) {
+					minValue = values[i];
+					minTimestamp = timestamps[i];
+				}
+				if (values[i] > maxValue) {
+					maxValue = values[i];
+					maxTimestamp = timestamps[i];
+				}
+			}
+
+			return {
+				min: { value: minValue, timestamp: minTimestamp },
+				max: { value: maxValue, timestamp: maxTimestamp },
+			};
+		}
+
+		function aggregateRSSIEntries(
+			entries: SemanticLogInfo[],
+		): SemanticLogInfo {
+			const channels: Record<
+				string,
+				{ values: number[]; timestamps: string[] }
+			> = {};
+
+			// Collect all channel data
+			for (const entry of entries) {
+				if (entry.kind !== "BACKGROUND_RSSI") continue;
+
+				for (const [channelKey, rssiString] of Object.entries(entry)) {
+					if (channelKey === "kind" || channelKey === "timestamp")
+						continue;
+					if (typeof rssiString !== "string") continue;
+
+					channels[channelKey] ??= { values: [], timestamps: [] };
+
+					channels[channelKey].values.push(
+						parseRSSIValue(rssiString),
+					);
+					channels[channelKey].timestamps.push(entry.timestamp);
+				}
+			}
+
+			// Calculate statistics for each channel
+			const channelStats: Record<string, any> = {};
+			for (const [channelKey, data] of Object.entries(channels)) {
+				const { min, max } = findMinMaxWithTimestamp(
+					data.values,
+					data.timestamps,
+				);
+				const median = calculateMedian(data.values);
+				const stddev =
+					Math.round(calculateStdDev(data.values) * 100) / 100; // Round to 2 decimal places
+
+				channelStats[channelKey] = {
+					min,
+					max,
+					median,
+					stddev,
+				};
+			}
+
+			const summary: SemanticLogInfo = {
+				kind: "BACKGROUND_RSSI_SUMMARY",
+				timestamp: entries[0].timestamp,
+				samples: entries.length,
+				time_range: {
+					start: entries[0].timestamp,
+					end: entries.at(-1)!.timestamp,
+				},
+				...channelStats,
+			} as any;
+
+			return summary;
+		}
+
+		function flushBufferedEntries(
+			controller: TransformStreamDefaultController<SemanticLogInfo>,
+		) {
+			if (bufferedRSSIEntries.length === 0) return;
+
+			if (bufferedRSSIEntries.length <= 2) {
+				// Not enough entries to aggregate, emit raw entries
+				for (const entry of bufferedRSSIEntries) {
+					controller.enqueue(entry);
+				}
+			} else {
+				// Aggregate the entries
+				const summary = aggregateRSSIEntries(bufferedRSSIEntries);
+				controller.enqueue(summary);
+			}
+
+			bufferedRSSIEntries.length = 0;
+		}
+
+		const transformer: Transformer<SemanticLogInfo, SemanticLogInfo> = {
+			transform(chunk, controller) {
+				if (chunk.kind === "BACKGROUND_RSSI") {
+					// Buffer this RSSI entry
+					bufferedRSSIEntries.push(chunk);
+					return;
+				}
+
+				// Different entry type found, flush any buffered RSSI entries
+				flushBufferedEntries(controller);
+
+				// Pass through the current entry
+				controller.enqueue(chunk);
+			},
+
+			flush(controller) {
+				// Flush any remaining buffered RSSI entries
+				flushBufferedEntries(controller);
+			},
+		};
+
+		super(transformer);
+	}
+}
+
 /** Main pipeline class that processes log content through all transform stages */
 export class LogTransformPipeline {
 	async processLogContent(logContent: string): Promise<SemanticLogInfo[]> {
@@ -773,6 +1041,8 @@ export class LogTransformPipeline {
 		const parseNestedStructures = new ParseNestedStructures();
 		const filterLogEntries = new FilterLogEntries();
 		const classifyLogEntry = new ClassifyLogEntry();
+		const detectBackgroundRSSICalls = new DetectBackgroundRSSICalls();
+		const aggregateBackgroundRSSI = new AggregateBackgroundRSSI();
 
 		// Create a writable stream to collect results
 		const writableStream = new WritableStream<SemanticLogInfo>({
@@ -795,6 +1065,8 @@ export class LogTransformPipeline {
 			.pipeThrough(parseNestedStructures)
 			.pipeThrough(filterLogEntries)
 			.pipeThrough(classifyLogEntry)
+			.pipeThrough(detectBackgroundRSSICalls)
+			.pipeThrough(aggregateBackgroundRSSI)
 			.pipeTo(writableStream);
 
 		return entries;
