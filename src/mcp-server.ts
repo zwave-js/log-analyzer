@@ -205,19 +205,19 @@ async function main() {
 				{
 					name: "searchLogEntries",
 					description:
-						"Search log entries by keyword/text/regex with optional type and time filtering, supports pagination",
+						"Search log entries by keyword/text/regex with optional type and time filtering, supports pagination. Regex patterns are automatically detected (e.g., 'temperature|temp', 'Air.*temperature', '[Bb]attery') but can be explicitly controlled via isRegex parameter.",
 					inputSchema: {
 						type: "object",
 						properties: {
 							query: {
 								type: "string",
 								description:
-									"Search query text or regex pattern",
+									"Search query text or regex pattern. Common regex patterns like | (alternation), .* (wildcards), [abc] (character classes), etc. are automatically detected.",
 							},
 							isRegex: {
 								type: "boolean",
 								description:
-									"Whether the query is a regex pattern",
+									"Whether the query is a regex pattern. If not specified, regex patterns are auto-detected based on common regex syntax.",
 								default: false,
 							},
 							entryTypes: {

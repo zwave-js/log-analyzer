@@ -792,6 +792,25 @@ export class LogQueryEngine {
 	}
 
 	/**
+	 * Auto-detect if a query string looks like a regex pattern
+	 */
+	private isLikelyRegex(query: string): boolean {
+		// Common regex patterns that suggest the user intends regex
+		const regexIndicators = [
+			/\|/,           // Alternation (pipe)
+			/\[[^\]]+\]/,   // Character classes
+			/\([^)]*\)/,    // Groups
+			/\*|\+|\?/,     // Quantifiers
+			/\^.*\$/,       // Start/end anchors
+			/\\[dwsWDS]/,   // Common escape sequences
+			/\.\*/,         // .* pattern
+			/\.\+/,         // .+ pattern
+		];
+		
+		return regexIndicators.some(pattern => pattern.test(query));
+	}
+
+	/**
 	 * Search log entries by keyword/text/regex with optional type filtering
 	 */
 	async searchLogEntries(args: SearchLogEntriesArgs): Promise<SearchResults> {
@@ -804,8 +823,11 @@ export class LogQueryEngine {
 			offset = 0,
 		} = args;
 
+		// Auto-detect regex if not explicitly specified
+		const shouldUseRegex = isRegex || this.isLikelyRegex(query);
+
 		// Start with text search results
-		let searchIndices = this.indexes.textSearchIndex.search(query, isRegex);
+		let searchIndices = this.indexes.textSearchIndex.search(query, shouldUseRegex);
 
 		// Apply time range filter using TimeRangeIndex for efficiency
 		if (timeRange) {
