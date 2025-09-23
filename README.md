@@ -65,10 +65,12 @@ for await (const chunk of analyzer.continueAnalysis(
 ```
 
 ## Changelog
+
 <!--
 	Placeholder for next release:
 	### **WORK IN PROGRESS**
 -->
+
 ### 0.0.2 (2025-08-14)
 
 - Fixed an issue where the package could not be imported due to a wrong field in `package.json`

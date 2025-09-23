@@ -40,5 +40,4 @@ for (const entry of transformedLog) {
 	await fs.appendFile(filenameStr + ".jsonl", line + "\n");
 }
 
-
 console.log(`Wrote ${transformedLog.length} entries to ${filenameStr}.jsonl`);
