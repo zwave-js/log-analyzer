@@ -49,7 +49,7 @@ export type SemanticLogInfo = {
 	| {
 			kind: "SEND_DATA_REQUEST";
 			nodeId: number;
-			transmitOptions: string;
+			transmitOptions: string[];
 			callbackId: number;
 			payload: LogInfoPayload;
 	  }
@@ -116,24 +116,28 @@ export type SemanticLogInfo = {
 			"channel 0": {
 				min: { value: number; timestamp: string };
 				max: { value: number; timestamp: string };
+				mean: number;
 				median: number;
 				stddev: number;
 			};
 			"channel 1": {
 				min: { value: number; timestamp: string };
 				max: { value: number; timestamp: string };
+				mean: number;
 				median: number;
 				stddev: number;
 			};
 			"channel 2"?: {
 				min: { value: number; timestamp: string };
 				max: { value: number; timestamp: string };
+				mean: number;
 				median: number;
 				stddev: number;
 			};
 			"channel 3"?: {
 				min: { value: number; timestamp: string };
 				max: { value: number; timestamp: string };
+				mean: number;
 				median: number;
 				stddev: number;
 			};

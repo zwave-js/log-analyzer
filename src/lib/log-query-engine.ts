@@ -19,6 +19,7 @@ import type {
 	GetBackgroundRSSIBeforeArgs,
 	SearchLogEntriesArgs,
 	GetLogChunkArgs,
+	AttributeFilter,
 } from "./log-query-engine-types.js";
 
 class TimeRangeIndexImpl extends TimeRangeIndex {
@@ -143,72 +144,55 @@ class TextSearchIndexImpl extends TextSearchIndex {
 	}
 
 	private extractSearchableText(entry: SemanticLogInfo): string {
-		const parts: string[] = [entry.timestamp, entry.kind];
-
-		// Extract node ID if present
-		if ("nodeId" in entry) {
-			parts.push(`node ${entry.nodeId}`);
-		}
-
-		// Extract message content based on entry type
-		if (
-			entry.kind === "INCOMING_COMMAND" ||
-			entry.kind === "SEND_DATA_REQUEST"
-		) {
-			if (entry.payload) {
-				parts.push(this.extractPayloadText(entry.payload));
-			}
-		} else if ("message" in entry) {
-			if (typeof entry.message === "string") {
-				parts.push(entry.message);
-			} else if (typeof entry.message === "object") {
-				parts.push(this.extractPayloadText(entry.message));
-			}
-		}
-
-		// Add other relevant properties
-		if ("rssi" in entry && entry.rssi) {
-			parts.push(entry.rssi);
-		}
-		if ("commandClass" in entry && entry.commandClass) {
-			parts.push(entry.commandClass);
-		}
-		if ("property" in entry && entry.property) {
-			parts.push(entry.property);
-		}
-
+		const parts: string[] = [];
+		this.extractAllStringFields(entry, parts);
 		return parts.join(" ");
 	}
 
-	private extractPayloadText(payload: any): string {
-		if (typeof payload === "string") {
-			return payload;
+	private extractAllStringFields(obj: any, parts: string[], depth: number = 0): void {
+		// Prevent infinite recursion
+		if (depth > 50 || obj === null || obj === undefined) {
+			return;
 		}
-		if (typeof payload === "object" && payload !== null) {
-			const parts: string[] = [];
-			if (payload.message) {
-				parts.push(payload.message);
+
+		if (typeof obj === "string") {
+			parts.push(obj);
+		} else if (typeof obj === "number" || typeof obj === "boolean") {
+			parts.push(String(obj));
+		} else if (Array.isArray(obj)) {
+			for (const item of obj) {
+				this.extractAllStringFields(item, parts, depth + 1);
 			}
-			if (payload.attributes) {
-				for (const [key, value] of Object.entries(payload.attributes)) {
-					parts.push(`${key}: ${value}`);
-				}
+		} else if (typeof obj === "object") {
+			for (const value of Object.values(obj)) {
+				this.extractAllStringFields(value, parts, depth + 1);
 			}
-			if (payload.nested) {
-				parts.push(this.extractPayloadText(payload.nested));
-			}
-			return parts.join(" ");
 		}
-		return String(payload);
 	}
 
-	search(query: string, isRegex: boolean): number[] {
+	search(query: string): number[] {
 		const indices: number[] = [];
-		const searchTerm = query.toLowerCase();
+
+		// Parse regex delimited syntax /pattern/flags
+		let isRegex = false;
+		let searchPattern = query;
+		let regexFlags = "i"; // Default to case-insensitive
+
+		// Check for /pattern/flags syntax
+		const regexMatch = query.match(/^\/(.+?)\/([gimuy]*)$/);
+		if (regexMatch) {
+			isRegex = true;
+			searchPattern = regexMatch[1];
+			regexFlags = regexMatch[2] || "i"; // Use provided flags or default to case-insensitive
+		} else {
+			// Auto-detect regex patterns
+			isRegex = this.isLikelyRegex(query);
+			searchPattern = query;
+		}
 
 		if (isRegex) {
 			try {
-				const regex = new RegExp(searchTerm, "i");
+				const regex = new RegExp(searchPattern, regexFlags);
 				for (const [index, content] of this.contentMap.entries()) {
 					if (regex.test(content)) {
 						indices.push(index);
@@ -216,21 +200,42 @@ class TextSearchIndexImpl extends TextSearchIndex {
 				}
 			} catch {
 				// Invalid regex, fall back to plain text search
+				const fallbackTerm = regexMatch ? searchPattern.toLowerCase() : query.toLowerCase();
 				for (const [index, content] of this.contentMap.entries()) {
-					if (content.includes(searchTerm)) {
+					if (content.includes(fallbackTerm)) {
 						indices.push(index);
 					}
 				}
 			}
 		} else {
+			const plainTerm = query.toLowerCase();
 			for (const [index, content] of this.contentMap.entries()) {
-				if (content.includes(searchTerm)) {
+				if (content.includes(plainTerm)) {
 					indices.push(index);
 				}
 			}
 		}
 
 		return indices;
+	}
+
+	/**
+	 * Auto-detect if a query string looks like a regex pattern
+	 */
+	private isLikelyRegex(query: string): boolean {
+		// Common regex patterns that suggest the user intends regex
+		const regexIndicators = [
+			/\|/, // Alternation (pipe)
+			/\[[^\]]+\]/, // Character classes
+			/\([^)]*\)/, // Groups
+			/\*|\+|\?/, // Quantifiers
+			/\^.*\$/, // Start/end anchors
+			/\\[dwsWDS]/, // Common escape sequences
+			/\.\*/, // .* pattern
+			/\.\+/, // .+ pattern
+		];
+
+		return regexIndicators.some((pattern) => pattern.test(query));
 	}
 }
 
@@ -357,6 +362,188 @@ export class LogQueryEngine {
 		return new Date(timestamp).getTime();
 	}
 
+	/**
+	 * Extract a value from an object using a dot-separated path
+	 * This method is more lenient and checks both root-level and nested attributes
+	 */
+	private getValueByPath(obj: any, path: string): any {
+		const parts = path.split(".").filter((p) => p !== "attributes");
+		let current = obj;
+
+		// First try the direct path
+		for (const part of parts) {
+			if (current === null || current === undefined) {
+				break;
+			}
+			current = current[part];
+		}
+
+		// If we found a value via direct path, return it
+		if (current !== undefined) {
+			return current;
+		}
+
+		// If the direct path didn't work and this is a single-segment path,
+		// also try looking in the attributes object
+		if (parts.length === 1) {
+			const attributeValue = obj?.attributes?.[parts[0]];
+			if (attributeValue !== undefined) {
+				return attributeValue;
+			}
+		}
+
+		return undefined;
+	}
+
+	/**
+	 * Apply a single attribute filter to a log entry
+	 */
+	private applyAttributeFilter(
+		entry: SemanticLogInfo,
+		filter: AttributeFilter,
+	): boolean {
+		const actualValue = this.getValueByPath(entry, filter.path);
+		const filterValue = filter.value;
+
+		// If the actual value is undefined/null, only match if filter expects null/undefined
+		if (actualValue === undefined || actualValue === null) {
+			return (
+				filter.operator === "eq" &&
+				(filterValue === null || filterValue === undefined)
+			);
+		}
+
+		switch (filter.operator) {
+			case "eq":
+				return actualValue === filterValue;
+			case "ne":
+				return actualValue !== filterValue;
+			case "gt":
+				if (
+					typeof actualValue === "number" &&
+					typeof filterValue === "number"
+				) {
+					return actualValue > filterValue;
+				}
+				if (
+					typeof actualValue === "string" &&
+					typeof filterValue === "string"
+				) {
+					return actualValue > filterValue;
+				}
+				return false;
+			case "gte":
+				if (
+					typeof actualValue === "number" &&
+					typeof filterValue === "number"
+				) {
+					return actualValue >= filterValue;
+				}
+				if (
+					typeof actualValue === "string" &&
+					typeof filterValue === "string"
+				) {
+					return actualValue >= filterValue;
+				}
+				return false;
+			case "lt":
+				if (
+					typeof actualValue === "number" &&
+					typeof filterValue === "number"
+				) {
+					return actualValue < filterValue;
+				}
+				if (
+					typeof actualValue === "string" &&
+					typeof filterValue === "string"
+				) {
+					return actualValue < filterValue;
+				}
+				return false;
+			case "lte":
+				if (
+					typeof actualValue === "number" &&
+					typeof filterValue === "number"
+				) {
+					return actualValue <= filterValue;
+				}
+				if (
+					typeof actualValue === "string" &&
+					typeof filterValue === "string"
+				) {
+					return actualValue <= filterValue;
+				}
+				return false;
+			case "match": {
+				const actualStr = String(actualValue);
+				const filterStr = String(filterValue);
+
+				// Parse regex delimited syntax /pattern/flags
+				let isRegex = false;
+				let searchPattern = filterStr;
+				let regexFlags = "i"; // Default to case-insensitive
+
+				// Check for /pattern/flags syntax
+				const regexMatch = filterStr.match(/^\/(.+?)\/([gimuy]*)$/);
+				if (regexMatch) {
+					isRegex = true;
+					searchPattern = regexMatch[1];
+					regexFlags = regexMatch[2] || "i"; // Use provided flags or default to case-insensitive
+				} else {
+					// Auto-detect regex patterns
+					isRegex = this.isLikelyRegex(filterStr);
+					searchPattern = filterStr;
+				}
+
+				if (isRegex) {
+					try {
+						const regex = new RegExp(searchPattern, regexFlags);
+						return regex.test(actualStr);
+					} catch {
+						// Invalid regex, fall back to string contains
+						const fallbackPattern = regexMatch ? searchPattern.toLowerCase() : filterStr.toLowerCase();
+						return actualStr.toLowerCase().includes(fallbackPattern);
+					}
+				} else {
+					return actualStr.toLowerCase().includes(filterStr.toLowerCase());
+				}
+			}
+			default:
+				return false;
+		}
+	}
+
+	/**
+	 * Auto-detect if a query string looks like a regex pattern
+	 */
+	private isLikelyRegex(query: string): boolean {
+		// Common regex patterns that suggest the user intends regex
+		const regexIndicators = [
+			/\|/, // Alternation (pipe)
+			/\[[^\]]+\]/, // Character classes
+			/\([^)]*\)/, // Groups
+			/\*|\+|\?/, // Quantifiers
+			/\^.*\$/, // Start/end anchors
+			/\\[dwsWDS]/, // Common escape sequences
+			/\.\*/, // .* pattern
+			/\.\+/, // .+ pattern
+		];
+
+		return regexIndicators.some((pattern) => pattern.test(query));
+	}
+
+	/**
+	 * Apply all attribute filters to a log entry
+	 */
+	private passesAttributeFilters(
+		entry: SemanticLogInfo,
+		filters: AttributeFilter[],
+	): boolean {
+		return filters.every((filter) =>
+			this.applyAttributeFilter(entry, filter),
+		);
+	}
+
 	private calculateMedian(values: number[]): number {
 		const sorted = [...values].sort((a, b) => a - b);
 		const mid = Math.floor(sorted.length / 2);
@@ -366,9 +553,14 @@ export class LogQueryEngine {
 		return sorted[mid];
 	}
 
+	private calculateMean(values: number[]): number {
+		if (values.length === 0) return 0;
+		return values.reduce((sum, val) => sum + val, 0) / values.length;
+	}
+
 	private calculateStdDev(values: number[]): number {
 		if (values.length === 0) return 0;
-		const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+		const mean = this.calculateMean(values);
 		const variance =
 			values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) /
 			values.length;
@@ -493,14 +685,8 @@ export class LogQueryEngine {
 			return {
 				nodeId,
 				timeRange: defaultTimeRange,
-				rssiStatistics: { min: 0, max: 0, median: 0, stddev: 0 },
 				commandCounts: { incoming: 0, outgoing: 0, total: 0 },
-				unsolicitedReportIntervals: {
-					min: 0,
-					max: 0,
-					median: 0,
-					stddev: 0,
-				},
+				commandClasses: [],
 			};
 		}
 
@@ -527,12 +713,13 @@ export class LogQueryEngine {
 				? {
 						min: Math.min(...rssiValues),
 						max: Math.max(...rssiValues),
+						mean: Math.round(this.calculateMean(rssiValues) * 100) / 100,
 						median: this.calculateMedian(rssiValues),
 						stddev:
 							Math.round(this.calculateStdDev(rssiValues) * 100) /
 							100,
 					}
-				: { min: 0, max: 0, median: 0, stddev: 0 };
+				: undefined;
 
 		// Calculate command counts
 		let incoming = 0,
@@ -606,12 +793,96 @@ export class LogQueryEngine {
 				? {
 						min: Math.min(...intervals),
 						max: Math.max(...intervals),
+						mean: Math.round(this.calculateMean(intervals) * 100) / 100,
 						median: this.calculateMedian(intervals),
 						stddev:
 							Math.round(this.calculateStdDev(intervals) * 100) /
 							100,
 					}
-				: { min: 0, max: 0, median: 0, stddev: 0 };
+				: undefined;
+
+		// Extract and collect command classes used by the node
+		const commandClassesSet = new Set<string>();
+
+		for (let i = 0; i < filteredEntries.length; i++) {
+			const entry = filteredEntries[i];
+			let commandClass: string | undefined;
+
+			if (
+				entry.kind === "INCOMING_COMMAND" ||
+				entry.kind === "SEND_DATA_REQUEST"
+			) {
+				// Try to extract command class from payload
+				if (entry.payload?.message) {
+					// Check if message has square brackets, if so extract from within
+					const match = entry.payload.message.match(/\[([^\]]+)\]/);
+					if (match) {
+						commandClass = match[1];
+					} else {
+						// Use the message directly if no square brackets
+						commandClass = entry.payload.message;
+					}
+				} else if (entry.payload?.nested?.message) {
+					const match =
+						entry.payload.nested.message.match(/\[([^\]]+)\]/);
+					if (match) {
+						commandClass = match[1];
+					} else {
+						commandClass = entry.payload.nested.message;
+					}
+				}
+			} else if (
+				entry.kind === "VALUE_ADDED" ||
+				entry.kind === "VALUE_UPDATED" ||
+				entry.kind === "VALUE_REMOVED" ||
+				entry.kind === "METADATA_UPDATED"
+			) {
+				commandClass = entry.commandClass;
+			}
+
+			if (commandClass) {
+				commandClassesSet.add(commandClass);
+			}
+		}
+
+		// Apply transport CC merging rules
+		const commandClasses: string[] = [];
+		const hasSecurityS2 = Array.from(commandClassesSet).some((cc) =>
+			/Security2CC.*/.test(cc),
+		);
+		const hasSecurityS0 = Array.from(commandClassesSet).some((cc) =>
+			/SecurityCC.*/.test(cc),
+		);
+		const hasTransportService = Array.from(commandClassesSet).some((cc) =>
+			/TransportServiceCC.*/.test(cc),
+		);
+		const hasSupervision = Array.from(commandClassesSet).some((cc) =>
+			/SupervisionCC.*/.test(cc),
+		);
+		const hasMultiCommand = Array.from(commandClassesSet).some((cc) =>
+			/MultiCommandCC.*/.test(cc),
+		);
+
+		// Add merged transport CCs
+		if (hasSecurityS2) commandClasses.push("Security S2");
+		if (hasSecurityS0) commandClasses.push("Security S0");
+		if (hasTransportService) commandClasses.push("Transport Service");
+		if (hasSupervision) commandClasses.push("Supervision");
+		if (hasMultiCommand) commandClasses.push("Multi Command");
+
+		// Add other command classes (exclude the ones we merged)
+		for (const cc of commandClassesSet) {
+			if (
+				!/Security2CC.*|SecurityCC.*|TransportServiceCC.*|SupervisionCC.*|MultiCommandCC.*/.test(
+					cc,
+				)
+			) {
+				commandClasses.push(cc);
+			}
+		}
+
+		// Sort command classes alphabetically
+		commandClasses.sort();
 
 		return {
 			nodeId,
@@ -619,6 +890,7 @@ export class LogQueryEngine {
 			rssiStatistics,
 			commandCounts,
 			unsolicitedReportIntervals,
+			commandClasses,
 		};
 	}
 
@@ -666,7 +938,7 @@ export class LogQueryEngine {
 			rssi?: string;
 			commandClass?: string;
 			callbackId?: number;
-			transmitOptions?: string;
+			transmitOptions?: string[];
 			transmitStatus?: string;
 			routingAttempts?: number;
 			ackRSSI?: string;
@@ -792,42 +1064,20 @@ export class LogQueryEngine {
 	}
 
 	/**
-	 * Auto-detect if a query string looks like a regex pattern
-	 */
-	private isLikelyRegex(query: string): boolean {
-		// Common regex patterns that suggest the user intends regex
-		const regexIndicators = [
-			/\|/,           // Alternation (pipe)
-			/\[[^\]]+\]/,   // Character classes
-			/\([^)]*\)/,    // Groups
-			/\*|\+|\?/,     // Quantifiers
-			/\^.*\$/,       // Start/end anchors
-			/\\[dwsWDS]/,   // Common escape sequences
-			/\.\*/,         // .* pattern
-			/\.\+/,         // .+ pattern
-		];
-		
-		return regexIndicators.some(pattern => pattern.test(query));
-	}
-
-	/**
 	 * Search log entries by keyword/text/regex with optional type filtering
 	 */
 	async searchLogEntries(args: SearchLogEntriesArgs): Promise<SearchResults> {
 		const {
 			query,
-			isRegex = false,
 			entryTypes,
 			timeRange,
+			attributeFilters,
 			limit = 100,
 			offset = 0,
 		} = args;
 
-		// Auto-detect regex if not explicitly specified
-		const shouldUseRegex = isRegex || this.isLikelyRegex(query);
-
 		// Start with text search results
-		let searchIndices = this.indexes.textSearchIndex.search(query, shouldUseRegex);
+		let searchIndices = this.indexes.textSearchIndex.search(query);
 
 		// Apply time range filter using TimeRangeIndex for efficiency
 		if (timeRange) {
@@ -848,6 +1098,14 @@ export class LogQueryEngine {
 			searchIndices = searchIndices.filter((index) => {
 				const entry = this.entries[index];
 				return typeSet.has(entry.kind);
+			});
+		}
+
+		// Apply attribute filters if specified
+		if (attributeFilters && attributeFilters.length > 0) {
+			searchIndices = searchIndices.filter((index) => {
+				const entry = this.entries[index];
+				return this.passesAttributeFilters(entry, attributeFilters);
 			});
 		}
 
@@ -984,6 +1242,7 @@ export class LogQueryEngine {
 				{
 					min?: number;
 					max?: number;
+					mean?: number;
 					median?: number;
 					stddev?: number;
 				}
@@ -1007,6 +1266,7 @@ export class LogQueryEngine {
 						channels[key] = {
 							min: channelData.min?.value,
 							max: channelData.max?.value,
+							mean: channelData.mean,
 							median: channelData.median,
 							stddev: channelData.stddev,
 						};
@@ -1017,6 +1277,7 @@ export class LogQueryEngine {
 					channels[key] = {
 						min: channelData.min?.value,
 						max: channelData.max?.value,
+						mean: channelData.mean,
 						median: channelData.median,
 						stddev: channelData.stddev,
 					};

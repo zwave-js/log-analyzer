@@ -35,14 +35,20 @@ export interface GetBackgroundRSSIBeforeArgs {
 	channel?: number;
 }
 
+export interface AttributeFilter {
+	path: string; // dot-separated path to the attribute (e.g., "nodeId", "payload.attributes.transmit status", "rssi")
+	operator: "gt" | "gte" | "eq" | "lt" | "lte" | "ne" | "match";
+	value: string | number | boolean;
+}
+
 export interface SearchLogEntriesArgs {
 	query: string;
-	isRegex?: boolean;
 	entryTypes?: SemanticLogKind[];
 	timeRange?: {
 		start: string;
 		end: string;
 	};
+	attributeFilters?: AttributeFilter[];
 	limit?: number;
 	offset?: number;
 }
@@ -83,9 +89,10 @@ export interface NodeSummary {
 		start: string;
 		end: string;
 	};
-	rssiStatistics: {
+	rssiStatistics?: {
 		min: number;
 		max: number;
+		mean: number;
 		median: number;
 		stddev: number;
 	};
@@ -94,12 +101,14 @@ export interface NodeSummary {
 		outgoing: number;
 		total: number;
 	};
-	unsolicitedReportIntervals: {
+	unsolicitedReportIntervals?: {
 		min: number; // seconds
 		max: number;
+		mean: number;
 		median: number;
 		stddev: number;
 	};
+	commandClasses: string[];
 }
 
 export interface NodeCommunication {
@@ -112,7 +121,7 @@ export interface NodeCommunication {
 		commandClass?: string; // extracted from payload.message or payload.nested.message
 		// For outgoing events (SEND_DATA_REQUEST + SEND_DATA_CALLBACK)
 		callbackId?: number;
-		transmitOptions?: string; // e.g., "0x05"
+		transmitOptions?: string[]; // e.g., ["ACK", "AutoRoute"]
 		transmitStatus?: string; // e.g., "OK, took 10 ms"
 		routingAttempts?: number;
 		ackRSSI?: string; // e.g., "-105 dBm"
@@ -143,6 +152,7 @@ export interface BackgroundRSSIReading {
 			value?: number; // for single measurements
 			min?: number; // for summaries
 			max?: number;
+			mean?: number;
 			median?: number;
 			stddev?: number;
 		}
@@ -183,7 +193,7 @@ export abstract class TimeRangeIndex {
 }
 
 export abstract class TextSearchIndex {
-	abstract search(query: string, isRegex: boolean): number[];
+	abstract search(query: string): number[];
 }
 
 export abstract class BackgroundRSSIIndex {

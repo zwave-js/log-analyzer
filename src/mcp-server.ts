@@ -52,7 +52,7 @@ async function main() {
 				{
 					name: "getNodeSummary",
 					description:
-						"Get traffic and signal quality summary for a specific node including RSSI statistics and unsolicited report intervals",
+						"Get traffic and signal quality summary for a specific node including RSSI statistics, unsolicited report intervals, and command classes used by the node",
 					inputSchema: {
 						type: "object",
 						properties: {
@@ -205,20 +205,14 @@ async function main() {
 				{
 					name: "searchLogEntries",
 					description:
-						"Search log entries by keyword/text/regex with optional type and time filtering, supports pagination. Regex patterns are automatically detected (e.g., 'temperature|temp', 'Air.*temperature', '[Bb]attery') but can be explicitly controlled via isRegex parameter.",
+						"Search log entries by keyword/text/regex with optional type and time filtering, supports pagination. The query will search across ALL string fields in log entries recursively (including deeply nested attributes). For regex searches, either wrap your pattern in forward slashes like /pattern/flags or use regex syntax patterns (|, *, +, ?, [], (), etc.) which will be auto-detected. Examples: 'temperature' (plain text), '/temp|battery/i' (explicit regex), 'temp.*sensor' (auto-detected regex), '/node [0-9]+/' (explicit regex).",
 					inputSchema: {
 						type: "object",
 						properties: {
 							query: {
 								type: "string",
 								description:
-									"Search query text or regex pattern. Common regex patterns like | (alternation), .* (wildcards), [abc] (character classes), etc. are automatically detected.",
-							},
-							isRegex: {
-								type: "boolean",
-								description:
-									"Whether the query is a regex pattern. If not specified, regex patterns are auto-detected based on common regex syntax.",
-								default: false,
+									"Search query text or regex pattern. Searches ALL string-valued fields recursively throughout the log entry. For regex: wrap in forward slashes '/pattern/' or use regex syntax (|, *, +, ?, [], etc.) for auto-detection. Examples: 'battery', '/temp|humidity/', 'node.*[0-9]+'",
 							},
 							entryTypes: {
 								type: "array",
@@ -241,6 +235,32 @@ async function main() {
 										description:
 											"End timestamp in ISO format",
 									},
+								},
+							},
+							attributeFilters: {
+								type: "array",
+								description:
+									"Filter log entries by attribute values using comparison operators",
+								items: {
+									type: "object",
+									properties: {
+										path: {
+											type: "string",
+											description:
+												"Dot-separated path to the attribute (e.g., 'nodeId', 'payload.attributes.transmit status', 'rssi')",
+										},
+										operator: {
+											type: "string",
+											enum: ["gt", "gte", "eq", "lt", "lte", "ne", "match"],
+											description:
+												"Comparison operator: gt/gte/lt/lte/eq/ne for numbers, match for string/regex searching. For 'match': use plain text for contains search, or wrap in /pattern/ for regex, or use regex syntax for auto-detection",
+										},
+										value: {
+											description:
+												"Value to compare against (string, number, or boolean). For 'match' operator: supports same regex patterns as main query",
+										},
+									},
+									required: ["path", "operator", "value"],
 								},
 							},
 							limit: {
@@ -497,14 +517,14 @@ async function main() {
 								text: JSON.stringify(
 									await queryEngine!.searchLogEntries({
 										query: args.query,
-										isRegex: args.isRegex as
-											| boolean
-											| undefined,
 										entryTypes: args.entryTypes as
 											| any[]
 											| undefined,
 										timeRange: args.timeRange as
 											| { start: string; end: string }
+											| undefined,
+										attributeFilters: args.attributeFilters as
+											| any[]
 											| undefined,
 										limit: args.limit as number | undefined,
 										offset: args.offset as

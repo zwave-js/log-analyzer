@@ -8,6 +8,29 @@ import { SemanticLogKind } from "../types.js";
 
 const TIMESTAMP_REGEX = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}/;
 
+const TransmitOptions = {
+	NotSet: 0,
+	ACK: 1 << 0,
+	LowPower: 1 << 1,
+	AutoRoute: 1 << 2,
+	NoRoute: 1 << 4,
+	Explore: 1 << 5,
+} as const;
+
+function parseTransmitOptions(hexValue: string): string[] {
+	const value = parseInt(hexValue, 16);
+	if (value === 0) return ["NotSet"];
+	const options: string[] = [];
+
+	if (value & TransmitOptions.ACK) options.push("ACK");
+	if (value & TransmitOptions.LowPower) options.push("LowPower");
+	if (value & TransmitOptions.AutoRoute) options.push("AutoRoute");
+	if (value & TransmitOptions.NoRoute) options.push("NoRoute");
+	if (value & TransmitOptions.Explore) options.push("Explore");
+
+	return options;
+}
+
 function tryParseValue(rawValue: string) {
 	let value: string | number | boolean = rawValue;
 	if (/^\d+$/.test(rawValue)) {
@@ -64,7 +87,10 @@ export class CompleteLogEntries extends TransformStream<string, string> {
 				// Split the buffer into lines, while ignoring the last incomplete line
 				const newLines = receiveBuffer.split("\n");
 				if (newLines.length > 1) {
-					lines.push(...newLines.slice(0, -1));
+					// Avoid spread operator for large arrays to prevent stack overflow
+					for (let i = 0; i < newLines.length - 1; i++) {
+						lines.push(newLines[i]);
+					}
 					receiveBuffer = newLines.at(-1)!;
 				}
 
@@ -558,11 +584,17 @@ export class ClassifyLogEntry extends TransformStream<
 
 					stripSquareBrackets(chunk.message);
 
+					// Parse transmit options from hex to array of option names
+					let parsedTransmitOptions: string[] = [];
+					if (transmitOptions) {
+						parsedTransmitOptions = parseTransmitOptions(transmitOptions);
+					}
+
 					controller.enqueue({
 						kind: SemanticLogKind.SendDataRequest,
 						timestamp: chunk.timestamp,
 						nodeId,
-						transmitOptions: transmitOptions!,
+						transmitOptions: parsedTransmitOptions,
 						callbackId: callbackId!,
 						payload: chunk.message.nested,
 					});
@@ -889,9 +921,13 @@ export class AggregateBackgroundRSSI extends TransformStream<
 			return sorted[mid];
 		}
 
+		function calculateMean(values: number[]): number {
+			if (values.length === 0) return 0;
+			return values.reduce((sum, val) => sum + val, 0) / values.length;
+		}
+
 		function calculateStdDev(values: number[]): number {
-			const mean =
-				values.reduce((sum, val) => sum + val, 0) / values.length;
+			const mean = calculateMean(values);
 			const variance =
 				values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) /
 				values.length;
@@ -960,6 +996,7 @@ export class AggregateBackgroundRSSI extends TransformStream<
 					data.values,
 					data.timestamps,
 				);
+				const mean = Math.round(calculateMean(data.values) * 100) / 100;
 				const median = calculateMedian(data.values);
 				const stddev =
 					Math.round(calculateStdDev(data.values) * 100) / 100; // Round to 2 decimal places
@@ -967,6 +1004,7 @@ export class AggregateBackgroundRSSI extends TransformStream<
 				channelStats[channelKey] = {
 					min,
 					max,
+					mean,
 					median,
 					stddev,
 				};
