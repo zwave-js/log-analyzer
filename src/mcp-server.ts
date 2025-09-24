@@ -42,7 +42,7 @@ async function main() {
 				{
 					name: "getLogSummary",
 					description:
-						"Get overall statistics about the entire Z-Wave log including total entries, time range, node IDs, and network activity broken down by node",
+						"Get overall statistics about the entire Z-Wave log including total entries, time range, node IDs, network activity broken down by node, and network-wide unsolicited report intervals",
 					inputSchema: {
 						type: "object",
 						properties: {},

@@ -587,6 +587,7 @@ export class LogQueryEngine {
 					total: { incoming: 0, outgoing: 0, total: 0 },
 					byNode: {},
 				},
+				unsolicitedReportIntervals: null,
 			};
 		}
 
@@ -642,11 +643,47 @@ export class LogQueryEngine {
 			}
 		}
 
+		// Calculate network-wide unsolicited report intervals
+		// Collect all incoming commands (treating them as unsolicited reports) across all nodes
+		const allIncomingCommands = this.entries.filter(
+			(entry) => entry.kind === "INCOMING_COMMAND",
+		);
+
+		let unsolicitedReportIntervals: {
+			min: number;
+			max: number;
+			mean: number;
+			median: number;
+			stddev: number;
+		} | undefined;
+
+		if (allIncomingCommands.length > 1) {
+			const intervals: number[] = [];
+
+			// Calculate intervals between consecutive incoming commands across the entire network
+			for (let i = 1; i < allIncomingCommands.length; i++) {
+				const prevTime = this.parseTimestamp(allIncomingCommands[i - 1].timestamp);
+				const currTime = this.parseTimestamp(allIncomingCommands[i].timestamp);
+				intervals.push((currTime - prevTime) / 1000); // Convert to seconds
+			}
+
+			if (intervals.length > 0) {
+				unsolicitedReportIntervals = {
+					min: Math.min(...intervals),
+					max: Math.max(...intervals),
+					mean: Math.round(this.calculateMean(intervals) * 100) / 100,
+					median: this.calculateMedian(intervals),
+					stddev: Math.round(this.calculateStdDev(intervals) * 100) / 100,
+				};
+			}
+		}
+
 		return {
 			totalEntries,
 			timeRange,
 			nodeIds,
 			networkActivity,
+			unsolicitedReportIntervals: unsolicitedReportIntervals || null,
 		};
 	}
 
@@ -740,52 +777,57 @@ export class LogQueryEngine {
 		};
 
 		// Calculate unsolicited report intervals
-		// Find incoming commands that are not responses to outgoing requests
+		// Treat all incoming commands as unsolicited reports for better traffic understanding
 		const incomingCommands = filteredEntries.filter(
 			(entry) => entry.kind === "INCOMING_COMMAND",
 		);
 
-		// Find outgoing requests to identify which incoming commands are responses
-		const outgoingRequests = filteredEntries.filter(
-			(entry) => entry.kind === "SEND_DATA_REQUEST",
-		);
-
-		// Identify unsolicited reports (incoming commands not preceded by an outgoing request within a reasonable time)
-		const unsolicitedReports: typeof incomingCommands = [];
-		const timeWindow = 5000; // 5 seconds
-
-		for (let i = 0; i < incomingCommands.length; i++) {
-			const incoming = incomingCommands[i];
-			const incomingTime = this.parseTimestamp(incoming.timestamp);
-			let hasRecentRequest = false;
-
-			for (let j = 0; j < outgoingRequests.length; j++) {
-				const request = outgoingRequests[j];
-				const requestTime = this.parseTimestamp(request.timestamp);
-				if (
-					requestTime < incomingTime &&
-					incomingTime - requestTime <= timeWindow
-				) {
-					hasRecentRequest = true;
-					break;
-				}
-			}
-
-			if (!hasRecentRequest) {
-				unsolicitedReports.push(incoming);
-			}
-		}
+		// Use all incoming commands as unsolicited reports (no filtering)
+		const unsolicitedReports = incomingCommands;
 
 		// Calculate intervals between unsolicited reports
+		// This includes intervals from time range start to first report,
+		// between consecutive reports, and from last report to time range end
 		const intervals: number[] = [];
-		for (let i = 1; i < unsolicitedReports.length; i++) {
-			const prevTime = this.parseTimestamp(
-				unsolicitedReports[i - 1].timestamp,
-			);
-			const currTime = this.parseTimestamp(
-				unsolicitedReports[i].timestamp,
-			);
-			intervals.push((currTime - prevTime) / 1000); // Convert to seconds
+
+		if (unsolicitedReports.length > 0) {
+			// Determine the actual time range we're analyzing
+			// Use the provided time range if available, otherwise use the full range of all entries
+			const analysisTimeRange = timeRange || {
+				start: this.entries[0]?.timestamp || "",
+				end: this.entries[this.entries.length - 1]?.timestamp || "",
+			};
+
+			// Only proceed if we have valid time range bounds
+			if (analysisTimeRange.start && analysisTimeRange.end) {
+				const rangeStartTime = this.parseTimestamp(analysisTimeRange.start);
+				const rangeEndTime = this.parseTimestamp(analysisTimeRange.end);
+
+				// Add interval from time range start to first unsolicited report
+				const firstReportTime = this.parseTimestamp(unsolicitedReports[0].timestamp);
+				if (firstReportTime > rangeStartTime) {
+					intervals.push((firstReportTime - rangeStartTime) / 1000);
+				}
+
+				// Add intervals between consecutive unsolicited reports
+				for (let i = 1; i < unsolicitedReports.length; i++) {
+					const prevTime = this.parseTimestamp(
+						unsolicitedReports[i - 1].timestamp,
+					);
+					const currTime = this.parseTimestamp(
+						unsolicitedReports[i].timestamp,
+					);
+					intervals.push((currTime - prevTime) / 1000); // Convert to seconds
+				}
+
+				// Add interval from last unsolicited report to time range end
+				const lastReportTime = this.parseTimestamp(
+					unsolicitedReports[unsolicitedReports.length - 1].timestamp,
+				);
+				if (rangeEndTime > lastReportTime) {
+					intervals.push((rangeEndTime - lastReportTime) / 1000);
+				}
+			}
 		}
 
 		const unsolicitedReportIntervals =

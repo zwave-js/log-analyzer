@@ -81,6 +81,13 @@ export interface LogSummary {
 			}
 		>;
 	};
+	unsolicitedReportIntervals: {
+		min: number; // seconds
+		max: number;
+		mean: number;
+		median: number;
+		stddev: number;
+	} | null;
 }
 
 export interface NodeSummary {
