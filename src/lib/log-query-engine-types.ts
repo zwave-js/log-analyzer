@@ -24,7 +24,7 @@ export interface GetEventsAroundTimestampArgs {
 	timestamp: string;
 	beforeSeconds?: number;
 	afterSeconds?: number;
-	entryTypes?: SemanticLogKind[];
+	entryKinds?: SemanticLogKind[];
 	limit?: number;
 	offset?: number;
 }
@@ -43,7 +43,7 @@ export interface AttributeFilter {
 
 export interface SearchLogEntriesArgs {
 	query: string;
-	entryTypes?: SemanticLogKind[];
+	entryKinds?: SemanticLogKind[];
 	timeRange?: {
 		start: string;
 		end: string;

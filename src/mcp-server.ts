@@ -155,10 +155,10 @@ async function main() {
 									"Seconds to look after the timestamp",
 								default: 30,
 							},
-							entryTypes: {
+							entryKinds: {
 								type: "array",
 								description:
-									"Filter by specific log entry types",
+									"Filter by specific log entry kinds",
 								items: { type: "string" },
 							},
 							limit: {
@@ -214,10 +214,10 @@ async function main() {
 								description:
 									"Search query text or regex pattern. Searches ALL string-valued fields recursively throughout the log entry. For regex: wrap in forward slashes '/pattern/' or use regex syntax (|, *, +, ?, [], etc.) for auto-detection. Examples: 'battery', '/temp|humidity/', 'node.*[0-9]+'",
 							},
-							entryTypes: {
+							entryKinds: {
 								type: "array",
 								description:
-									"Filter by specific log entry types",
+									"Filter by specific log entry kinds",
 								items: { type: "string" },
 							},
 							timeRange: {
@@ -455,7 +455,7 @@ async function main() {
 											afterSeconds: args.afterSeconds as
 												| number
 												| undefined,
-											entryTypes: args.entryTypes as
+											entryKinds: args.entryKinds as
 												| any[]
 												| undefined,
 											limit: args.limit as
@@ -517,7 +517,7 @@ async function main() {
 								text: JSON.stringify(
 									await queryEngine!.searchLogEntries({
 										query: args.query,
-										entryTypes: args.entryTypes as
+										entryKinds: args.entryKinds as
 											| any[]
 											| undefined,
 										timeRange: args.timeRange as

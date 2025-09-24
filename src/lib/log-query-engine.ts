@@ -1111,7 +1111,7 @@ export class LogQueryEngine {
 	async searchLogEntries(args: SearchLogEntriesArgs): Promise<SearchResults> {
 		const {
 			query,
-			entryTypes,
+			entryKinds,
 			timeRange,
 			attributeFilters,
 			limit = 100,
@@ -1134,12 +1134,14 @@ export class LogQueryEngine {
 			);
 		}
 
-		// Apply entry type filter if specified
-		if (entryTypes && entryTypes.length > 0) {
-			const typeSet = new Set(entryTypes);
+		// Apply entry kind filter if specified
+		if (entryKinds && entryKinds.length > 0) {
 			searchIndices = searchIndices.filter((index) => {
 				const entry = this.entries[index];
-				return typeSet.has(entry.kind);
+				// Allow substring matching - check if any provided kind is a substring of the actual entry kind
+				return entryKinds.some(filterKind =>
+					entry.kind === filterKind || entry.kind.includes(filterKind)
+				);
 			});
 		}
 
@@ -1176,7 +1178,7 @@ export class LogQueryEngine {
 			timestamp,
 			beforeSeconds = 30,
 			afterSeconds = 30,
-			entryTypes,
+			entryKinds,
 			limit = 100,
 			offset = 0,
 		} = args;
@@ -1197,13 +1199,15 @@ export class LogQueryEngine {
 			timeWindow.end,
 		);
 
-		// Apply entry type filter if specified
+		// Apply entry kind filter if specified
 		let filteredIndices = timeRangeIndices;
-		if (entryTypes && entryTypes.length > 0) {
-			const typeSet = new Set(entryTypes);
+		if (entryKinds && entryKinds.length > 0) {
 			filteredIndices = timeRangeIndices.filter((index) => {
 				const entry = this.entries[index];
-				return typeSet.has(entry.kind);
+				// Allow substring matching - check if any provided kind is a substring of the actual entry kind
+				return entryKinds.some(filterKind =>
+					entry.kind === filterKind || entry.kind.includes(filterKind)
+				);
 			});
 		}
 

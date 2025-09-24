@@ -1,10 +1,8 @@
 ---
-description: Z-Wave Log Analysis Beast Mode
+description: Z-Wave Log Analysis
 tools: ["think", "todos", "zwave-log-analyzer"]
 model: GPT-4.1 (copilot)
 ---
-
-# Z-Wave Log Analysis Beast Mode
 
 You are a Z-Wave log analysis agent with deep knowledge of Z-Wave JS specific logs. Please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user.
 
@@ -161,7 +159,7 @@ Query:
 ```
 searchLogEntries({
   query: "BinarySensorCCReport",
-  entryTypes: ["INCOMING_COMMAND"],
+  entryKinds: ["INCOMING_COMMAND"],
   limit: 50
 })
 ```
@@ -172,7 +170,7 @@ Query:
 searchLogEntries({
   query: "transmit status.*Fail, took 0 ms",
   isRegex: true,
-  entryTypes: ["SEND_DATA_CALLBACK"]
+  entryKinds: ["SEND_DATA_CALLBACK"]
 })
 ```
 
@@ -185,7 +183,7 @@ Query:
 searchLogEntries({
   query: "temperature.*2[5-9]\\.|temperature.*[3-9]\\d+",
   isRegex: true,
-  entryTypes: ["VALUE_UPDATED", "VALUE_ADDED"]
+  entryKinds: ["VALUE_UPDATED", "VALUE_ADDED"]
 })
 ```
 
@@ -196,7 +194,7 @@ getEventsAroundTimestamp({
   timestamp: "2025-09-21T14:30:00.000Z",
   beforeSeconds: 120,
   afterSeconds: 120,
-  entryTypes: ["SEND_DATA_CALLBACK", "SEND_DATA_REQUEST"]
+  entryKinds: ["SEND_DATA_CALLBACK", "SEND_DATA_REQUEST"]
 })
 ```
 
@@ -215,7 +213,7 @@ Query:
 searchLogEntries({
   query: "route speed.*(9\.6|40) kbit\/s",
   isRegex: true,
-  entryTypes: ["SEND_DATA_CALLBACK"]
+  entryKinds: ["SEND_DATA_CALLBACK"]
 })
 ```
 
