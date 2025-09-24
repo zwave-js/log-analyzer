@@ -8,8 +8,8 @@ import type {
 	GetEventsAroundTimestampArgs,
 	GetBackgroundRSSIBeforeArgs,
 	SearchLogEntriesArgs,
-	GetLogChunkArgs,
-} from "./log-query-engine-types.js";
+	GetLogChunkArgs
+} from "./log-query-engine.js";
 
 /**
  * Simplified Z-Wave log analyzer that handles all the complexity internally.
