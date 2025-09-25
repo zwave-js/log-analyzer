@@ -92,14 +92,12 @@ export type AppAction =
 // Derived state selectors
 export const selectors = {
 	canSendMessage: (state: ApplicationState): boolean => {
-		return (
-			state.apiKeyState === "exists" &&
+		return state.apiKeyState === "exists" &&
 			state.logFileState === "attached" &&
 			state.userQueryState === "not-empty" &&
 			state.uiState !== "waiting-for-ai-response" &&
 			state.uiState !== "ai-responding" &&
-			state.tokenCounts.total <= 1000000
-		);
+			state.tokenCounts.total <= 1000000;
 	},
 
 	isUploading: (state: ApplicationState): boolean => {

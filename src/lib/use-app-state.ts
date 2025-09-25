@@ -49,7 +49,7 @@ export function useAppState() {
 		}
 	}, []);
 
-	// Initialize analyzer when API key is set
+	// Initialize analyzer when API key changes
 	useEffect(() => {
 		if (state.apiKey) {
 			initializeAnalyzer(state.apiKey);
@@ -122,8 +122,9 @@ export function useAppState() {
 						payload: transformedLog,
 					});
 
-					// Upload to Gemini
-					await state.analyzer.uploadLogFile(transformedLog);
+					// For function calling mode, load directly into MCP client
+					await state.analyzer.loadLogContentForToolCalling(content);
+
 					dispatch({
 						type: "SET_LOG_FILE_STATE",
 						payload: "attached",
@@ -158,11 +159,11 @@ export function useAppState() {
 			dispatch({ type: "SET_ATTACHED_FILE_NAME", payload: "" });
 			dispatch({ type: "UPDATE_TOKEN_COUNTS", payload: { logFile: 0 } });
 
-			// Delete from backend in background
+			// Clean up MCP client data in background
 			try {
-				await state.analyzer.deleteLogFile();
+				state.analyzer.disconnect();
 			} catch (err) {
-				console.error("Failed to delete log file from backend:", err);
+				console.error("Failed to cleanup MCP client:", err);
 				// Don't show error to user since UI is already updated
 			}
 		}, [state.analyzer]),
@@ -176,11 +177,6 @@ export function useAppState() {
 							payload: "Please configure your API key first",
 						});
 						dispatch({ type: "SET_SETTINGS_OPEN", payload: true });
-					} else if (state.logFileState !== "attached") {
-						dispatch({
-							type: "SET_ERROR",
-							payload: "Please upload a log file first",
-						});
 					}
 					return;
 				}
@@ -301,7 +297,7 @@ export function useAppState() {
 							await analyzer.endChatSession();
 						}
 						if (state.logFileState === "attached") {
-							await analyzer.deleteLogFile();
+							analyzer.disconnect();
 						}
 					} catch (err) {
 						console.error("Failed to cleanup during reset:", err);

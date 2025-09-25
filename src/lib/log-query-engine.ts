@@ -43,7 +43,7 @@ export interface AttributeFilter {
 }
 
 export interface SearchLogEntriesArgs {
-	query: string;
+	query?: string;
 	entryKinds?: SemanticLogKind[];
 	timeRange?: {
 		start: string;
@@ -173,6 +173,7 @@ export interface SearchResults {
 	matches: Array<SemanticLogInfo>;
 	totalMatches: number;
 	hasMore: boolean;
+	error?: string;
 }
 
 export interface LogChunk {
@@ -1338,11 +1339,33 @@ export class LogQueryEngine {
 			offset = 0,
 		} = args;
 
-		// Start with text search results
-		let searchIndices = this.indexes.textSearchIndex.search(query);
+		// Validate that at least one of the required parameters is provided
+		const hasQuery = typeof query === "string" && query.trim().length > 0;
+		const hasEntryKinds = Array.isArray(entryKinds) && entryKinds.length > 0;
+		const hasTimeRange = timeRange && typeof timeRange === "object" && timeRange.start && timeRange.end;
+		const hasAttributeFilters = Array.isArray(attributeFilters) && attributeFilters.length > 0;
+
+		if (!hasQuery && !hasEntryKinds && !hasTimeRange && !hasAttributeFilters) {
+			return {
+				query: query || "",
+				matches: [],
+				totalMatches: 0,
+				hasMore: false,
+				error: "At least one of the following parameters must be provided: query, entryKinds, timeRange, or attributeFilters"
+			};
+		}
+
+		// Start with text search results or all entries if no query
+		let searchIndices: number[];
+		if (hasQuery) {
+			searchIndices = this.indexes.textSearchIndex.search(query);
+		} else {
+			// If no query, start with all entries
+			searchIndices = Array.from({ length: this.entries.length }, (_, i) => i);
+		}
 
 		// Apply time range filter using TimeRangeIndex for efficiency
-		if (timeRange) {
+		if (hasTimeRange) {
 			const timeRangeIndices =
 				this.indexes.timeRangeIndex.findEntriesInRange(
 					timeRange.start,
@@ -1355,7 +1378,7 @@ export class LogQueryEngine {
 		}
 
 		// Apply entry kind filter if specified
-		if (entryKinds && entryKinds.length > 0) {
+		if (hasEntryKinds) {
 			searchIndices = searchIndices.filter((index: number) => {
 				const entry = this.entries[index];
 				// Allow substring matching - check if any provided kind is a substring of the actual entry kind
@@ -1368,7 +1391,7 @@ export class LogQueryEngine {
 		}
 
 		// Apply attribute filters if specified
-		if (attributeFilters && attributeFilters.length > 0) {
+		if (hasAttributeFilters) {
 			searchIndices = searchIndices.filter((index: number) => {
 				const entry = this.entries[index];
 				return this.passesAttributeFilters(entry, attributeFilters);
@@ -1383,7 +1406,7 @@ export class LogQueryEngine {
 		const paginatedMatches = paginatedIndices.map((i: number) => this.entries[i]);
 
 		return {
-			query,
+			query: query || "",
 			matches: paginatedMatches,
 			totalMatches,
 			hasMore: offset + limit < totalMatches,

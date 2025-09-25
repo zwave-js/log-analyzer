@@ -53,7 +53,8 @@
     "release": "release-script"
   },
   "dependencies": {
-    "@google/genai": "^1.13.0",
+    "@google/genai": "^1.20.0",
+    "@modelcontextprotocol/sdk": "^1.18.1",
     "@zwave-js/core": "^15.10.0",
     "yargs": "^18.0.0"
   },
@@ -63,7 +64,6 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@eslint/js": "^9.32.0",
-    "@modelcontextprotocol/sdk": "^1.18.1",
     "@mui/icons-material": "^7.3.1",
     "@mui/material": "^7.3.1",
     "@types/node": "^22.17.1",
