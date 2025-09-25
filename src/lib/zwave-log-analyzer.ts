@@ -1,5 +1,4 @@
 import { readFile } from "node:fs/promises";
-import { LogTransformPipeline } from "./log-processor/index.js";
 import { GeminiLogAnalyzer, GEMINI_MODEL_ID } from "./ai/gemini-client.js";
 import { LogQueryEngine } from "./log-query-engine.js";
 import type {
@@ -16,7 +15,6 @@ import type {
  * This is the main class that users should interact with.
  */
 export class ZWaveLogAnalyzer {
-	private pipeline: LogTransformPipeline;
 	private analyzer: GeminiLogAnalyzer;
 	private queryEngine: LogQueryEngine | null = null;
 	private initialized = false;
@@ -26,7 +24,6 @@ export class ZWaveLogAnalyzer {
 	 * @param apiKey - Your Google Gemini API key
 	 */
 	constructor(apiKey: string) {
-		this.pipeline = new LogTransformPipeline();
 		this.analyzer = new GeminiLogAnalyzer({
 			apiKey,
 			model: GEMINI_MODEL_ID,
@@ -76,23 +73,17 @@ export class ZWaveLogAnalyzer {
 		query: string,
 	): AsyncGenerator<string, void, unknown> {
 		try {
-			// Process the log content
-			const transformedLog =
-				await this.pipeline.processLogContent(logContent);
-
-			// Initialize the query engine for tool access
-			this.queryEngine = new LogQueryEngine(transformedLog);
-
 			// Initialize the AI analyzer if not already done
 			if (!this.initialized) {
 				await this.analyzer.uploadSystemPrompt();
 				this.initialized = true;
 			}
 
-			// Upload the transformed log file
-			await this.analyzer.uploadLogFile({
-				entries: transformedLog,
-			});
+			// Load log content directly into the MCP server via the analyzer
+			await this.analyzer.loadLogContentForToolCalling(logContent);
+
+			// Get the query engine from the analyzer's server
+			this.queryEngine = this.analyzer.getMCPServer().getQueryEngine();
 
 			// Perform the analysis and stream results
 			yield* this.analyzer.sendFirstChatMessage(query);
