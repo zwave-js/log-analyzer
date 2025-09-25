@@ -6,6 +6,7 @@ import {
 } from "@google/genai";
 import type { GeminiConfig, GeminiFileInfo, TransformedLog } from "../types.js";
 import { SYSTEM_PROMPT } from "./analysis-prompt.js";
+import { LogQueryEngine } from "../log-query-engine.js";
 
 // Gemini model constant
 export const GEMINI_MODEL_ID = "gemini-2.5-pro";
@@ -58,13 +59,41 @@ export class GeminiLogAnalyzer {
 		transformedLog: TransformedLog,
 	): Promise<GeminiFileInfo> {
 		try {
+			// Create query engine to generate summaries
+			const queryEngine = new LogQueryEngine(transformedLog.entries);
+
+			const jsonLines: string[] = [];
+
+			// Generate log summary
+			const logSummary = await queryEngine.getLogSummary();
+			jsonLines.push(
+				JSON.stringify({
+					kind: "LOG_SUMMARY",
+					...logSummary,
+				}),
+			);
+
+			// Generate node summaries for each node
+			for (const nodeId of logSummary.nodeIds) {
+				const nodeSummary = await queryEngine.getNodeSummary({
+					nodeId,
+				});
+				jsonLines.push(
+					JSON.stringify({
+						kind: "NODE_SUMMARY",
+						...nodeSummary,
+					}),
+				);
+			}
+
 			// Convert log entries to JSON lines format
-			const jsonLines = transformedLog.entries
-				.map((entry) => JSON.stringify(entry))
-				.join("\n");
+
+			for (const entry of transformedLog.entries) {
+				jsonLines.push(JSON.stringify(entry));
+			}
 
 			const response = await this.genAI.files.upload({
-				file: new Blob([jsonLines], { type: "text/plain" }),
+				file: new Blob([jsonLines.join("\n")], { type: "text/plain" }),
 				config: { mimeType: "text/plain" },
 			});
 
@@ -208,6 +237,9 @@ export class GeminiLogAnalyzer {
 			});
 
 			for await (const part of response) {
+				if (part.usageMetadata) {
+					console.log("Usage metadata:", part.usageMetadata);
+				}
 				if (part.text) {
 					yield part.text;
 				}
