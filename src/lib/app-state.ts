@@ -63,6 +63,11 @@ export interface ApplicationState {
 	settingsOpen: boolean;
 	error: string;
 
+	// Rate limiting state
+	isRateLimited: boolean;
+	rateLimitRetryAfter: number | null; // Unix timestamp when rate limit will be lifted
+	pendingQuery: string; // Query to restore after rate limit is lifted
+
 	// Reset key for forcing component resets
 	resetKey: number;
 }
@@ -84,6 +89,9 @@ export type AppAction =
 	| { type: "SET_SETTINGS_OPEN"; payload: boolean }
 	| { type: "SET_ERROR"; payload: string }
 	| { type: "CLEAR_ERROR" }
+	| { type: "SET_RATE_LIMITED"; payload: { isRateLimited: boolean; retryAfter?: number; pendingQuery?: string } }
+	| { type: "CLEAR_RATE_LIMIT" }
+	| { type: "REMOVE_LAST_MESSAGE" }
 	| { type: "NEW_CHAT" }
 	| { type: "START_CHAT_SESSION" }
 	| { type: "END_CHAT_SESSION" }
@@ -98,7 +106,8 @@ export const selectors = {
 			state.userQueryState === "not-empty" &&
 			state.uiState !== "waiting-for-ai-response" &&
 			state.uiState !== "ai-responding" &&
-			state.tokenCounts.total <= 1000000
+			state.tokenCounts.total <= 1000000 &&
+			!state.isRateLimited
 		);
 	},
 
@@ -150,5 +159,8 @@ export const initialState: ApplicationState = {
 	},
 	settingsOpen: false,
 	error: "",
+	isRateLimited: false,
+	rateLimitRetryAfter: null,
+	pendingQuery: "",
 	resetKey: 0,
 };

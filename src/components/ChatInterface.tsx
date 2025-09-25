@@ -15,6 +15,7 @@ import { Suggestion } from "./Suggestion";
 import { LoadingIndicator } from "./LoadingIndicator";
 import { DragOverlay } from "./DragOverlay";
 import { FirstResponseIndicator } from "./FirstResponseIndicator";
+import { RateLimitNotification } from "./RateLimitNotification";
 
 interface ChatInterfaceProps {
 	state: ApplicationState;
@@ -330,6 +331,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 						</>
 					)}
 
+					{/* Show rate limit notification */}
+					{state.isRateLimited && (
+						<RateLimitNotification retryAfter={state.rateLimitRetryAfter} />
+					)}
+
 					{/* New Chat Button - show after AI responses in chat area */}
 					{hasStartedChat &&
 						state.uiState === "idle" &&
@@ -629,6 +635,9 @@ function getDisabledReason(state: ApplicationState): string {
 		state.uiState === "ai-responding"
 	) {
 		return "Please wait for the current analysis to complete";
+	}
+	if (state.isRateLimited) {
+		return "Rate limited. Please try again later";
 	}
 	return "";
 }

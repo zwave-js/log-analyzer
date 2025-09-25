@@ -5,6 +5,61 @@ import { GeminiLogAnalyzer, GEMINI_MODEL_ID } from "./ai/gemini-client";
 import { LogTransformPipeline } from "./log-processor";
 import type { TransformedLog } from "./types";
 
+// Utility function to parse rate limit errors from Gemini API
+function parseRateLimitError(errorMessage: string): {
+	isRateLimit: boolean;
+	retryAfter?: number;
+} {
+	try {
+		// The error message might be JSON wrapped in a larger error message
+		let jsonStr = errorMessage;
+
+		// Try to extract JSON from the error message
+		const jsonMatch = errorMessage.match(/\{[\s\S]*\}/);
+		if (jsonMatch) {
+			jsonStr = jsonMatch[0];
+		}
+
+		const errorObj = JSON.parse(jsonStr);
+
+		// Check if this is a rate limit error
+		if (errorObj.error && errorObj.error.code === 429) {
+			// Extract retry delay from the message or details
+			let retryAfter: number | undefined;
+
+			if (errorObj.error.message) {
+				// Look for "Please retry in X.Ys" pattern
+				const retryMatch = errorObj.error.message.match(/Please retry in (\d+(?:\.\d+)?)s/);
+				if (retryMatch) {
+					retryAfter = Math.ceil(parseFloat(retryMatch[1])) * 1000; // Convert to milliseconds
+				}
+			}
+
+			// Also check in details for RetryInfo
+			if (errorObj.error.details) {
+				for (const detail of errorObj.error.details) {
+					if (detail["@type"] === "type.googleapis.com/google.rpc.RetryInfo" && detail.retryDelay) {
+						// retryDelay is in format like "26s"
+						const delayMatch = detail.retryDelay.match(/(\d+)s/);
+						if (delayMatch) {
+							retryAfter = parseInt(delayMatch[1]) * 1000; // Convert to milliseconds
+						}
+					}
+				}
+			}
+
+			return {
+				isRateLimit: true,
+				retryAfter,
+			};
+		}
+	} catch {
+		// Not a JSON error or not parseable
+	}
+
+	return { isRateLimit: false };
+}
+
 export function useAppState() {
 	const [state, dispatch] = useReducer(appReducer, initialState);
 
@@ -246,6 +301,35 @@ export function useAppState() {
 				} catch (err) {
 					const errorMessage = (err as Error).message;
 
+					// Check if this is a rate limit error first
+					const rateLimitInfo = parseRateLimitError(errorMessage);
+
+					if (rateLimitInfo.isRateLimit) {
+						// Remove the last user message that caused the rate limit
+						dispatch({ type: "REMOVE_LAST_MESSAGE" });
+
+						// Set up rate limiting and store the query to restore later
+						const retryAfterTimestamp = rateLimitInfo.retryAfter ?
+							Date.now() + rateLimitInfo.retryAfter :
+							Date.now() + 30000; // Default to 30 seconds if not specified
+
+						dispatch({
+							type: "SET_RATE_LIMITED",
+							payload: {
+								isRateLimited: true,
+								retryAfter: retryAfterTimestamp,
+								pendingQuery: query, // Store the query to restore later
+							}
+						});
+
+						// Set up a timer to clear the rate limit
+						setTimeout(() => {
+							dispatch({ type: "CLEAR_RATE_LIMIT" });
+						}, rateLimitInfo.retryAfter || 30000);
+
+						return; // Don't set error state for rate limits
+					}
+
 					// Check if it's a context limit error
 					if (
 						errorMessage.includes("context") ||
@@ -277,6 +361,17 @@ export function useAppState() {
 
 		clearError: useCallback(() => {
 			dispatch({ type: "CLEAR_ERROR" });
+		}, []),
+
+		setRateLimited: useCallback((isRateLimited: boolean, retryAfter?: number, pendingQuery?: string) => {
+			dispatch({
+				type: "SET_RATE_LIMITED",
+				payload: { isRateLimited, retryAfter, pendingQuery }
+			});
+		}, []),
+
+		clearRateLimit: useCallback(() => {
+			dispatch({ type: "CLEAR_RATE_LIMIT" });
 		}, []),
 
 		newChat: useCallback(() => {

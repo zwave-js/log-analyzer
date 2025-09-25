@@ -162,6 +162,34 @@ export function appReducer(
 				error: "",
 			};
 
+		case "SET_RATE_LIMITED":
+			return {
+				...state,
+				isRateLimited: action.payload.isRateLimited,
+				rateLimitRetryAfter: action.payload.retryAfter || null,
+				pendingQuery: action.payload.pendingQuery || "",
+				currentQuery: action.payload.pendingQuery || "", // Restore query immediately
+				userQueryState: action.payload.pendingQuery?.trim() ? "not-empty" : "empty",
+				uiState: "idle", // Reset UI state when rate limited
+			};
+
+		case "CLEAR_RATE_LIMIT":
+			return {
+				...state,
+				isRateLimited: false,
+				rateLimitRetryAfter: null,
+				currentQuery: state.pendingQuery, // Restore the pending query
+				userQueryState: state.pendingQuery.trim() ? "not-empty" : "empty",
+				pendingQuery: "",
+			};
+
+		case "REMOVE_LAST_MESSAGE":
+			return {
+				...state,
+				messages: state.messages.slice(0, -1),
+				uiState: "idle",
+			};
+
 		case "NEW_CHAT":
 			return {
 				...state,
@@ -177,6 +205,9 @@ export function appReducer(
 				isFirstResponse: false,
 				firstResponseStartTime: null,
 				error: "",
+				isRateLimited: false,
+				rateLimitRetryAfter: null,
+				pendingQuery: "",
 				resetKey: state.resetKey + 1,
 				tokenCounts: {
 					systemPrompt: state.tokenCounts.systemPrompt,
