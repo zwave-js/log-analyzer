@@ -5,6 +5,7 @@ import {
 	Chat,
 	mcpToTool,
 	type Part,
+	FunctionCallingConfigMode,
 } from "@google/genai";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import {
@@ -28,9 +29,6 @@ export class GeminiLogAnalyzer {
 	private clientTransport: EventTargetTransport;
 	private serverTransport: EventTargetTransport;
 	private hasLoadedLogFile = false;
-
-	// Used to store parts of a streamed response that contain thought signatures
-	private thoughtParts: Part[] = [];
 
 	constructor(config: GeminiConfig) {
 		console.log(
@@ -189,6 +187,11 @@ export class GeminiLogAnalyzer {
 					// 	includeThoughts: true,
 					// },
 					tools: [mcpToTool(this.mcpClient)],
+					toolConfig: {
+						functionCallingConfig: {
+							mode: FunctionCallingConfigMode.ANY,
+						},
+					},
 				},
 			});
 		} catch (error) {
@@ -217,23 +220,14 @@ export class GeminiLogAnalyzer {
 
 			// Use the chat session's sendMessageStream method
 			// The SDK automatically handles MCP tool calls
-			const thoughtParts = this.thoughtParts.splice(
-				0,
-				this.thoughtParts.length,
-			);
-			console.log("Followup query with thought parts:", thoughtParts);
 			const response = await this.chatSession.sendMessageStream({
-				message: [...thoughtParts, query],
+				message: query,
 			});
 
 			console.log("Processing chat response stream...");
 			for await (const chunk of response) {
-				// Log any tool calls that are being made
-				if (chunk.functionCalls) {
-					console.log(
-						"AI is making function calls:",
-						chunk.functionCalls.map((fc) => fc.name),
-					);
+				if (chunk.usageMetadata) {
+					console.log("Usage metadata:", chunk.usageMetadata);
 				}
 				const parts = chunk.candidates?.[0]?.content?.parts;
 				if (!parts || parts.length === 0) continue;
@@ -246,6 +240,14 @@ export class GeminiLogAnalyzer {
 				// 	);
 				// 	this.thoughtParts.push(parts[0]!);
 				// }
+
+				// Log any tool calls that are being made
+				if (chunk.functionCalls) {
+					console.log(
+						"AI is making function calls:",
+						chunk.functionCalls.map((fc) => fc.name),
+					);
+				}
 
 				for (const part of parts) {
 					// if part.candidates[0]!.content?.parts

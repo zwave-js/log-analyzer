@@ -106,7 +106,7 @@ Certain issues are common in Z-Wave networks and can often have diverse symptoms
 
 ## Analysis Tools
 
-The following tools are available for Z-Wave log analysis:
+The following tools are available for Z-Wave log analysis. Before each tool call, think hard what else you might need to query. Try to call multiple tools at once to avoid excessive back-and-forth calls.
 
 ### Core Tools
 
