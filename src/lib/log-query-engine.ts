@@ -43,7 +43,7 @@ export interface AttributeFilter {
 }
 
 export interface SearchLogEntriesArgs {
-	query: string;
+	query?: string;
 	entryKinds?: SemanticLogKind[];
 	timeRange?: {
 		start: string;
@@ -173,6 +173,7 @@ export interface SearchResults {
 	matches: Array<SemanticLogInfo>;
 	totalMatches: number;
 	hasMore: boolean;
+	error?: string;
 }
 
 export interface LogChunk {
@@ -202,7 +203,7 @@ function parseTimestamp(timestamp: string): number {
 function findFirstIndexAtOrAfter<T>(
 	array: T[],
 	targetTime: number,
-	getTime: (item: T) => number
+	getTime: (item: T) => number,
 ): number {
 	let left = 0;
 	let right = array.length - 1;
@@ -226,7 +227,7 @@ function findFirstIndexAtOrAfter<T>(
 function findLastIndexAtOrBefore<T>(
 	array: T[],
 	targetTime: number,
-	getTime: (item: T) => number
+	getTime: (item: T) => number,
 ): number {
 	let left = 0;
 	let right = array.length - 1;
@@ -251,7 +252,7 @@ function findMostRecentIndexBefore<T>(
 	array: T[],
 	targetTime: number,
 	minTime: number,
-	getTime: (item: T) => number
+	getTime: (item: T) => number,
 ): number | null {
 	let left = 0;
 	let right = array.length - 1;
@@ -306,12 +307,12 @@ class TimeRangeIndex {
 		const startIndex = findFirstIndexAtOrAfter(
 			this.entries,
 			startTime,
-			(entry) => parseTimestamp(entry.timestamp)
+			(entry) => parseTimestamp(entry.timestamp),
 		);
 		const endIndex = findLastIndexAtOrBefore(
 			this.entries,
 			endTime,
-			(entry) => parseTimestamp(entry.timestamp)
+			(entry) => parseTimestamp(entry.timestamp),
 		);
 
 		for (let i = startIndex; i <= endIndex; i++) {
@@ -482,9 +483,7 @@ class BackgroundRSSIIndex {
 
 		// Sort by timestamp for efficient lookups
 		this.rssiEntries.sort(
-			(a, b) =>
-				parseTimestamp(a.timestamp) -
-				parseTimestamp(b.timestamp),
+			(a, b) => parseTimestamp(a.timestamp) - parseTimestamp(b.timestamp),
 		);
 	}
 
@@ -497,10 +496,12 @@ class BackgroundRSSIIndex {
 			this.rssiEntries,
 			targetTime,
 			minTime,
-			(entry) => parseTimestamp(entry.timestamp)
+			(entry) => parseTimestamp(entry.timestamp),
 		);
 
-		return resultIndex !== null ? this.rssiEntries[resultIndex].index : null;
+		return resultIndex !== null
+			? this.rssiEntries[resultIndex].index
+			: null;
 	}
 }
 
@@ -1014,9 +1015,7 @@ export class LogQueryEngine {
 
 			// Only proceed if we have valid time range bounds
 			if (analysisTimeRange.start && analysisTimeRange.end) {
-				const rangeStartTime = parseTimestamp(
-					analysisTimeRange.start,
-				);
+				const rangeStartTime = parseTimestamp(analysisTimeRange.start);
 				const rangeEndTime = parseTimestamp(analysisTimeRange.end);
 
 				// Add interval from time range start to first unsolicited report
@@ -1338,8 +1337,33 @@ export class LogQueryEngine {
 			offset = 0,
 		} = args;
 
-		// Start with text search results
-		let searchIndices = this.indexes.textSearchIndex.search(query);
+		// Validate that at least one of the filtering parameters is provided
+		const hasQuery = typeof query === "string" && query.trim().length > 0;
+		const hasEntryKinds =
+			Array.isArray(entryKinds) && entryKinds.length > 0;
+		const hasTimeRange = !!timeRange?.start && !!timeRange?.end;
+		const hasAttributeFilters =
+			Array.isArray(attributeFilters) && attributeFilters.length > 0;
+
+		if (
+			!hasQuery &&
+			!hasEntryKinds &&
+			!hasTimeRange &&
+			!hasAttributeFilters
+		) {
+			return {
+				query: query ?? "",
+				matches: [],
+				totalMatches: 0,
+				hasMore: false,
+				error: "At least one of the following parameters must be provided: query, entryKinds, timeRange, or attributeFilters",
+			};
+		}
+
+		// Start with text search results, or all entries if no query is given
+		let searchIndices = hasQuery
+			? this.indexes.textSearchIndex.search(query)
+			: Array.from({ length: this.entries.length }, (_, i) => i);
 
 		// Apply time range filter using TimeRangeIndex for efficiency
 		if (timeRange) {
@@ -1380,10 +1404,12 @@ export class LogQueryEngine {
 		// Apply pagination
 		const totalMatches = searchIndices.length;
 		const paginatedIndices = searchIndices.slice(offset, offset + limit);
-		const paginatedMatches = paginatedIndices.map((i: number) => this.entries[i]);
+		const paginatedMatches = paginatedIndices.map(
+			(i: number) => this.entries[i],
+		);
 
 		return {
-			query,
+			query: query ?? "",
 			matches: paginatedMatches,
 			totalMatches,
 			hasMore: offset + limit < totalMatches,
@@ -1440,7 +1466,9 @@ export class LogQueryEngine {
 		// Apply pagination
 		const totalCount = filteredIndices.length;
 		const paginatedIndices = filteredIndices.slice(offset, offset + limit);
-		const paginatedEvents = paginatedIndices.map((i: number) => this.entries[i]);
+		const paginatedEvents = paginatedIndices.map(
+			(i: number) => this.entries[i],
+		);
 
 		return {
 			targetTimestamp: timestamp,
