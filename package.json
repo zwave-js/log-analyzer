@@ -55,8 +55,8 @@
 		"release": "release-script"
 	},
 	"dependencies": {
-		"@google/genai": "^1.13.0",
-		"@modelcontextprotocol/sdk": "^1.26.0",
+		"@google/genai": "^2.10.0",
+		"@modelcontextprotocol/sdk": "^1.29.0",
 		"@zwave-js/core": "^15.25.2",
 		"yargs": "^18.0.0"
 	},
