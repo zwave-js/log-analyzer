@@ -109,6 +109,7 @@ Certain issues are common in Z-Wave networks and can often have diverse symptoms
 
 - **Too frequent reports / Too much traffic**:
   Can cause signal noise and prevent some devices from communicating entirely. This is especially problematic when the devices are connected through one or more repeaters, as these multiply the traffic on the network. Identify devices that report very frequently by looking at their mean unsolicited report interval. A mean <5 can be a significant problem, <15 is worth investigating.
+  A low median interval is not necessarily a problem if the mean is high, as this indicates that the device is mostly quiet, but occasionally sends bursts of reports. This is usually not a problem.
 
 - **Unnecessary reports**:
   Lead to too much traffic on the network. Reasons can be:
@@ -119,14 +120,14 @@ Certain issues are common in Z-Wave networks and can often have diverse symptoms
 - **Bad connections**:
   Unless used with very old devices, Z-Wave typically uses 100 kbps for communication and falls back to 40 or 9.6 kbps when the connection is poor. This is often an indicator for weak signal strength. Look for devices that frequently fall back to lower speeds or don't use 100 kbps at all.
   Other indicators are:
-  - Frequent re-transmit attempts for outgoing commands (transmit attempts consistently > 1)
-  - Large amount of repeaters in the route (the majority of cases should be direct communication, or through one repeater at most)
-  - Slow transmits (>100ms) for outgoing commands, especially when combined with multiple transmit attempts
-  - Frequent timeouts for Get requests
+    - Frequent re-transmit attempts for outgoing commands (transmit attempts consistently > 1)
+    - Large amount of repeaters in the route (the majority of cases should be direct communication, or through one repeater at most)
+    - Slow transmits (>100ms) for outgoing commands, especially when combined with multiple transmit attempts
+    - Frequent timeouts for Get requests
 
 # Analysis Tools
 
-The following tools are available for Z-Wave log analysis:
+The following tools are available for Z-Wave log analysis. Before each tool call, think hard what else you might need to query. Try to call multiple tools at once to avoid excessive back-and-forth calls.
 
 ## Core Tools
 
@@ -148,6 +149,14 @@ The following tools are available for Z-Wave log analysis:
 - **searchLogEntries** - Search log entries by keyword/text/regex with optional type and time filtering, supports pagination
 - **getLogChunk** - Read specific ranges of log entries by index with pagination support
 
+# Workflow
+
+1. Always start by loading the log file with `loadLogFile`, then call `getLogSummary` to get an overview of the entire log
+2. Use node-specific tools (`getNodeSummary`, `getNodeCommunication`) to analyze individual devices
+3. Use search tools (`searchLogEntries`) to find specific patterns or issues
+4. Use time-based tools (`getEventsAroundTimestamp`, `getBackgroundRSSIBefore`) for temporal analysis
+5. Use `getLogChunk` when you need to examine specific ranges of log entries
+
 ## Usage Examples
 
 When building queries, consider which parameters are optional depending on the question to answer. Start as broad as possible and use pagination to explore the results. Then narrow down the query step by step.
@@ -156,6 +165,7 @@ Some examples of common queries follow:
 
 Question: Find incoming Binary Sensor reports
 Query:
+
 ```
 searchLogEntries({
   query: "BinarySensorCCReport",
@@ -166,6 +176,7 @@ searchLogEntries({
 
 Question: Find transmit attempts that failed immediately.
 Query:
+
 ```
 searchLogEntries({
   query: "transmit status.*Fail, took 0 ms",
@@ -179,6 +190,7 @@ Query: Use the getNodeSummary tool repeatedly and look at the unsolicitedReportI
 
 Question: Find all temperature sensor readings above 25°C
 Query:
+
 ```
 searchLogEntries({
   query: "temperature.*2[5-9]\\.|temperature.*[3-9]\\d+",
@@ -189,6 +201,7 @@ searchLogEntries({
 
 Question: Investigate communication issues around a specific timestamp
 Query:
+
 ```
 getEventsAroundTimestamp({
   timestamp: "2025-09-21T14:30:00.000Z",
@@ -200,6 +213,7 @@ getEventsAroundTimestamp({
 
 Question: Check signal quality for node 15 during recent activity
 Query:
+
 ```
 getNodeCommunication({
   nodeId: 15,
@@ -209,6 +223,7 @@ getNodeCommunication({
 
 Question: Find devices that frequently use lower data rates (indicating poor connection)
 Query:
+
 ```
 searchLogEntries({
   query: "route speed.*(9\.6|40) kbit\/s",
