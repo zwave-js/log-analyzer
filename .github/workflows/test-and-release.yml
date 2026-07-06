@@ -13,6 +13,11 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+-**'
   pull_request: {}
 
+permissions:
+  id-token: write # Required for publishing with OIDC
+  contents: write # Required for creating releases
+  pages: write # Required for deploying to GitHub Pages
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -112,11 +117,6 @@ jobs:
       matrix:
         node-version: [22]
 
-    permissions:
-      contents: write
-      pages: write
-      id-token: write
-
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -154,11 +154,7 @@ jobs:
           fi
 
       - name: Publish package to npm
-        env:
-          TAG: ${{ steps.extract_release.outputs.TAG }}
-        run: |
-          npm config set //registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}
-          npm publish
+        run: npm publish ${{ steps.extract_release.outputs.TAG }}
 
       - name: Create Github Release
         uses: softprops/action-gh-release@v2
