@@ -392,8 +392,8 @@ class TextSearchIndex {
 		const indices: number[] = [];
 
 		// Parse regex delimited syntax /pattern/flags
-		let isRegex = false;
-		let searchPattern = query;
+		let isRegex: boolean;
+		let searchPattern: string;
 		let regexFlags = "i"; // Default to case-insensitive
 
 		// Check for /pattern/flags syntax
@@ -678,8 +678,8 @@ export class LogQueryEngine {
 				const filterStr = String(filterValue);
 
 				// Parse regex delimited syntax /pattern/flags
-				let isRegex = false;
-				let searchPattern = filterStr;
+				let isRegex: boolean;
+				let searchPattern: string;
 				let regexFlags = "i"; // Default to case-insensitive
 
 				// Check for /pattern/flags syntax

@@ -1,0 +1,1 @@
+{"root":["./src/cli.ts","./src/index.ts","./src/mcp-server.ts","./src/lib/app-reducer.ts","./src/lib/app-state.ts","./src/lib/log-query-engine.ts","./src/lib/types.ts","./src/lib/use-app-state.ts","./src/lib/zwave-log-analyzer.ts","./src/lib/ai/analysis-prompt.ts","./src/lib/ai/gemini-client.ts","./src/lib/log-processor/index.ts"],"version":"6.0.3"}

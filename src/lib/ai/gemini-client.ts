@@ -48,6 +48,7 @@ export class GeminiLogAnalyzer {
 			console.error("Failed to upload system prompt:", error);
 			throw new Error(
 				`System prompt upload failed: ${(error as Error).message}`,
+				{ cause: error },
 			);
 		}
 	}
@@ -112,6 +113,7 @@ export class GeminiLogAnalyzer {
 			console.error("Failed to upload log file:", error);
 			throw new Error(
 				`Log file upload failed: ${(error as Error).message}`,
+				{ cause: error },
 			);
 		}
 	}
@@ -214,6 +216,7 @@ export class GeminiLogAnalyzer {
 			console.error("Failed to create chat session:", error);
 			throw new Error(
 				`Chat session creation failed: ${(error as Error).message}`,
+				{ cause: error },
 			);
 		}
 	}
@@ -248,6 +251,7 @@ export class GeminiLogAnalyzer {
 			console.error("Chat message error:", error);
 			throw new Error(
 				`Failed to send chat message: ${(error as Error).message}`,
+				{ cause: error },
 			);
 		}
 	}
@@ -282,6 +286,7 @@ export class GeminiLogAnalyzer {
 			// Let's throw a more descriptive error
 			throw new Error(
 				`Failed to start conversation: ${(error as Error).message}`,
+				{ cause: error },
 			);
 		}
 	}

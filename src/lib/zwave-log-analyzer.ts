@@ -60,6 +60,7 @@ export class ZWaveLogAnalyzer {
 		} catch (error) {
 			throw new Error(
 				`Failed to analyze log file: ${(error as Error).message}`,
+				{ cause: error },
 			);
 		}
 	}
@@ -99,6 +100,7 @@ export class ZWaveLogAnalyzer {
 		} catch (error) {
 			throw new Error(
 				`Failed to analyze log content: ${(error as Error).message}`,
+				{ cause: error },
 			);
 		}
 	}
@@ -132,6 +134,7 @@ export class ZWaveLogAnalyzer {
 		} catch (error) {
 			throw new Error(
 				`Failed to continue analysis: ${(error as Error).message}`,
+				{ cause: error },
 			);
 		}
 	}

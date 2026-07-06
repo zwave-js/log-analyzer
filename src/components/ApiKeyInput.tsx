@@ -25,6 +25,13 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
 	onClose: externalOnClose,
 }) => {
 	const [localValue, setLocalValue] = useState(value);
+	const [prevValue, setPrevValue] = useState(value);
+
+	// Sync local value when external value changes (recommended React pattern)
+	if (value !== prevValue) {
+		setPrevValue(value);
+		setLocalValue(value);
+	}
 
 	const isOpen = externalOpen;
 
@@ -38,11 +45,6 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
 		onChange(localValue);
 		handleClose();
 	};
-
-	// Update local value when external value changes
-	React.useEffect(() => {
-		setLocalValue(value);
-	}, [value]);
 
 	return (
 		<Dialog open={isOpen} onClose={handleClose} maxWidth="sm" fullWidth>
