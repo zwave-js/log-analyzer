@@ -54,7 +54,8 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
 					<Typography
 						variant="body2"
 						color="text.secondary"
-						paragraph
+						component="p"
+						sx={{ mb: 2 }}
 					>
 						The log analyzer needs an AI model with large context to
 						analyze logs (Gemini 2.5 Pro). Because providing this
