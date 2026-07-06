@@ -57,7 +57,7 @@
 	"dependencies": {
 		"@google/genai": "^1.13.0",
 		"@modelcontextprotocol/sdk": "^1.26.0",
-		"@zwave-js/core": "^15.10.0",
+		"@zwave-js/core": "^15.25.2",
 		"yargs": "^18.0.0"
 	},
 	"devDependencies": {
