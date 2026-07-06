@@ -28,6 +28,43 @@ npx @zwave-js/log-analyzer /path/to/logfile.txt --question "Why is node 5 not re
 > [!NOTE]
 > AI-powered log analysis require very large context windows up to 1 million tokens. To be able to provide this service, we need you to bring your own Gemini API key. You can get one for free at https://aistudio.google.com/app/apikey
 
+## MCP Server
+
+This package includes an [MCP](https://modelcontextprotocol.io/) server that exposes the log query tools over stdio, allowing AI agents to analyze Z-Wave JS logs in a tool-driven fashion without loading the entire log into context.
+
+### Usage
+
+```bash
+npx --package=@zwave-js/log-analyzer zwave-log-analyzer-mcp
+```
+
+Or configure it in an MCP client:
+
+```json
+{
+	"mcpServers": {
+		"zwave-log-analyzer": {
+			"command": "npx",
+			"args": [
+				"--package=@zwave-js/log-analyzer",
+				"zwave-log-analyzer-mcp"
+			]
+		}
+	}
+}
+```
+
+### Tools
+
+- `loadLogFile` — Load a Z-Wave JS log file for analysis (must be called first)
+- `getLogSummary` — Overall statistics: entries, time range, nodes, network activity
+- `getNodeSummary` — Traffic and signal quality summary for a specific node
+- `getNodeCommunication` — Enumerate communication attempts with a node
+- `getEventsAroundTimestamp` — Log entries around a specific timestamp
+- `getBackgroundRSSIBefore` — Most recent background RSSI reading before a timestamp
+- `searchLogEntries` — Search entries by text/regex with filters and pagination
+- `getLogChunk` — Read specific ranges of log entries by index
+
 ## Library Usage
 
 You can use this package as a library in your own Node.js applications.
