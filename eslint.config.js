@@ -31,7 +31,12 @@ export default tseslint.config(
 		},
 	},
 	{
-		files: ["src/cli.ts", "src/index.ts", "src/lib/**/*.ts"],
+		files: [
+			"src/cli.ts",
+			"src/index.ts",
+			"src/mcp-server.ts",
+			"src/lib/**/*.ts",
+		],
 		languageOptions: {
 			globals: globals.node,
 		},

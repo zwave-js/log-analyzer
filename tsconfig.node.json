@@ -16,7 +16,12 @@
 		"resolveJsonModule": true,
 		"types": ["node"]
 	},
-	"include": ["src/cli.ts", "src/index.ts", "src/lib/**/*"],
+	"include": [
+		"src/cli.ts",
+		"src/index.ts",
+		"src/mcp-server.ts",
+		"src/lib/**/*"
+	],
 	"exclude": [
 		"src/components/**/*",
 		"src/App.tsx",
