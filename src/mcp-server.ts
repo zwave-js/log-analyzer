@@ -251,7 +251,15 @@ async function main() {
 										},
 										operator: {
 											type: "string",
-											enum: ["gt", "gte", "eq", "lt", "lte", "ne", "match"],
+											enum: [
+												"gt",
+												"gte",
+												"eq",
+												"lt",
+												"lte",
+												"ne",
+												"match",
+											],
 											description:
 												"Comparison operator: gt/gte/lt/lte/eq/ne for numbers, match for string/regex searching. For 'match': use plain text for contains search, or wrap in /pattern/ for regex, or use regex syntax for auto-detection",
 										},
@@ -422,8 +430,7 @@ async function main() {
 											| undefined,
 										limit: args.limit as number | undefined,
 										offset: args.offset as
-											| number
-											| undefined,
+											number | undefined,
 									}),
 									null,
 									2,
@@ -450,20 +457,15 @@ async function main() {
 											timestamp: args.timestamp,
 											beforeSeconds:
 												args.beforeSeconds as
-													| number
-													| undefined,
+													number | undefined,
 											afterSeconds: args.afterSeconds as
-												| number
-												| undefined,
+												number | undefined,
 											entryKinds: args.entryKinds as
-												| any[]
-												| undefined,
+												any[] | undefined,
 											limit: args.limit as
-												| number
-												| undefined,
+												number | undefined,
 											offset: args.offset as
-												| number
-												| undefined,
+												number | undefined,
 										},
 									),
 									null,
@@ -489,11 +491,9 @@ async function main() {
 									await queryEngine!.getBackgroundRSSIBefore({
 										timestamp: args.timestamp,
 										maxAge: args.maxAge as
-											| number
-											| undefined,
+											number | undefined,
 										channel: args.channel as
-											| number
-											| undefined,
+											number | undefined,
 									}),
 									null,
 									2,
@@ -518,18 +518,16 @@ async function main() {
 									await queryEngine!.searchLogEntries({
 										query: args.query,
 										entryKinds: args.entryKinds as
-											| any[]
-											| undefined,
+											any[] | undefined,
 										timeRange: args.timeRange as
 											| { start: string; end: string }
 											| undefined,
-										attributeFilters: args.attributeFilters as
-											| any[]
-											| undefined,
+										attributeFilters:
+											args.attributeFilters as
+												any[] | undefined,
 										limit: args.limit as number | undefined,
 										offset: args.offset as
-											| number
-											| undefined,
+											number | undefined,
 									}),
 									null,
 									2,
@@ -593,6 +591,4 @@ async function main() {
 	await server.connect(transport);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-	main().catch(console.error);
-}
+main().catch(console.error);
