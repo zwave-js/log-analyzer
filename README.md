@@ -107,8 +107,7 @@ for await (const chunk of analyzer.continueAnalysis(
 	Placeholder for next release:
 	### **WORK IN PROGRESS**
 -->
-
-### **WORK IN PROGRESS**
+### 0.1.1 (2026-07-07)
 
 - Fixed missing entrypoints and MCP server runtime checks
 
