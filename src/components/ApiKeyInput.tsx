@@ -25,6 +25,13 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
 	onClose: externalOnClose,
 }) => {
 	const [localValue, setLocalValue] = useState(value);
+	const [prevValue, setPrevValue] = useState(value);
+
+	// Sync local value when external value changes (recommended React pattern)
+	if (value !== prevValue) {
+		setPrevValue(value);
+		setLocalValue(value);
+	}
 
 	const isOpen = externalOpen;
 
@@ -39,11 +46,6 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
 		handleClose();
 	};
 
-	// Update local value when external value changes
-	React.useEffect(() => {
-		setLocalValue(value);
-	}, [value]);
-
 	return (
 		<Dialog open={isOpen} onClose={handleClose} maxWidth="sm" fullWidth>
 			<DialogTitle>API Settings</DialogTitle>
@@ -52,7 +54,8 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
 					<Typography
 						variant="body2"
 						color="text.secondary"
-						paragraph
+						component="p"
+						sx={{ mb: 2 }}
 					>
 						The log analyzer needs an AI model with large context to
 						analyze logs (Gemini 2.5 Pro). Because providing this

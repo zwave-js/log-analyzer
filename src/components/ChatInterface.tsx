@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import {
 	Box,
 	TextField,
@@ -82,16 +82,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 	onNewChat,
 }) => {
 	const [isDragOver, setIsDragOver] = useState(false);
-	const [greeting, setGreeting] = useState(() =>
-		getRandomGreeting(state.resetKey),
+	const greeting = useMemo(
+		() => getRandomGreeting(state.resetKey),
+		[state.resetKey],
 	);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const chatContainerRef = useRef<HTMLDivElement>(null);
-
-	// Update greeting when resetKey changes (new chat)
-	useEffect(() => {
-		setGreeting(getRandomGreeting(state.resetKey));
-	}, [state.resetKey]);
 
 	const suggestions = [
 		"Is my Z-Wave network in good shape?",
