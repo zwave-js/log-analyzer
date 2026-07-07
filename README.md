@@ -108,6 +108,10 @@ for await (const chunk of analyzer.continueAnalysis(
 	### **WORK IN PROGRESS**
 -->
 
+### **WORK IN PROGRESS**
+
+- Exposed the log analyzer functionality as an MCP server
+
 ### 0.0.2 (2025-08-14)
 
 - Fixed an issue where the package could not be imported due to a wrong field in `package.json`
