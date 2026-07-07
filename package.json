@@ -35,11 +35,7 @@
 		"dist/cli.js",
 		"dist/mcp-server.js",
 		"dist/index.{js,d.ts}",
-		"dist/lib/ai/*.{js,d.ts}",
-		"dist/lib/log-query-engine.{js,d.ts}",
-		"dist/lib/log-processor/*.{js,d.ts}",
-		"dist/lib/types.{js,d.ts}",
-		"dist/lib/zwave-log-analyzer.{js,d.ts}",
+		"dist/lib/**/*.{js,d.ts}",
 		"README.md",
 		"LICENSE"
 	],
