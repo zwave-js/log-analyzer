@@ -107,6 +107,12 @@ for await (const chunk of analyzer.continueAnalysis(
 	Placeholder for next release:
 	### **WORK IN PROGRESS**
 -->
+
+### **WORK IN PROGRESS**
+
+- Fixed the released package missing `dist/lib/log-query-engine.js`, which broke all entry points
+- Fixed the `zwave-log-analyzer-mcp` bin exiting immediately when started through the bin symlink (e.g. via `npx`)
+
 ### 0.1.0 (2026-07-07)
 
 - Exposed the log analyzer functionality as an MCP server
