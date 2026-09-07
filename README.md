@@ -101,19 +101,12 @@ for await (const chunk of analyzer.continueAnalysis(
 }
 ```
 
-## Contributing
-
-AI assistance is welcome when you personally review, understand, and can
-explain your contribution. Autonomous contributions are prohibited. Read the
-full [AI policy](AI_POLICY.md) before contributing.
-
 ## Changelog
 
 <!--
 	Placeholder for next release:
 	### **WORK IN PROGRESS**
 -->
-
 ### 0.1.1 (2026-07-07)
 
 - Fixed missing entrypoints and MCP server runtime checks
