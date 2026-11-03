@@ -13,15 +13,18 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const FILE_NAME_DATE_REGEXES = [
 	// 2026-11-02, 2026_11_02, 2026.11.02, 20261102
-	/(?<!\d)(?<year>\d{4})(?<sep>[-_.]?)(?<month>\d{2})\k<sep>(?<day>\d{2})(?!\d)/,
+	/(?<!\d)(?<year>\d{4})(?<sep>[-_.]?)(?<month>\d{2})\k<sep>(?<day>\d{2})(?!\d)/g,
 	// 02.11.2026
-	/(?<!\d)(?<day>\d{2})\.(?<month>\d{2})\.(?<year>\d{4})(?!\d)/,
+	/(?<!\d)(?<day>\d{2})\.(?<month>\d{2})\.(?<year>\d{4})(?!\d)/g,
 ];
 
 /** Returns the first valid date in a file name as a UTC timestamp, if there is one */
 export function parseDateFromFileName(fileName: string): number | undefined {
-	for (const regex of FILE_NAME_DATE_REGEXES) {
-		const groups = fileName.match(regex)?.groups;
+	const matches = FILE_NAME_DATE_REGEXES.flatMap((regex) => [
+		...fileName.matchAll(regex),
+	]).sort((a, b) => a.index - b.index);
+
+	for (const { groups } of matches) {
 		if (!groups) continue;
 
 		const year = parseInt(groups.year, 10);
