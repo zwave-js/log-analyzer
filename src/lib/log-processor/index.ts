@@ -6,7 +6,39 @@ import type {
 } from "../types.js";
 import { SemanticLogKind } from "../types.js";
 
-const TIMESTAMP_REGEX = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}/;
+const TIMESTAMP_REGEX = /^(?:\d{4}-\d{2}-\d{2} )?\d{2}:\d{2}:\d{2}\.\d{3}/;
+const TIME_ONLY_REGEX = /^(\d{2}):(\d{2}):(\d{2})\.(\d{3})$/;
+
+// Logs with time-only timestamps get dates counting up from this day
+const PLACEHOLDER_DATE_UTC = Date.UTC(1970, 0, 1);
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/** Adds placeholder dates to time-only timestamps, advancing the day at midnight */
+function createTimestampNormalizer(): (timestamp: string) => string {
+	let dayOffset = 0;
+	let prevTimeOfDay: number | undefined;
+
+	return (timestamp) => {
+		const match = timestamp.match(TIME_ONLY_REGEX);
+		if (!match) return timestamp;
+
+		const [h, m, s, ms] = match.slice(1).map((v) => parseInt(v, 10));
+		const timeOfDay = ((h * 60 + m) * 60 + s) * 1000 + ms;
+		// Only a large backwards jump is a midnight rollover. Small ones are out-of-order entries.
+		if (
+			prevTimeOfDay !== undefined &&
+			prevTimeOfDay - timeOfDay > MS_PER_DAY / 2
+		) {
+			dayOffset++;
+		}
+		prevTimeOfDay = timeOfDay;
+
+		const date = new Date(PLACEHOLDER_DATE_UTC + dayOffset * MS_PER_DAY)
+			.toISOString()
+			.slice(0, 10);
+		return `${date} ${timestamp}`;
+	};
+}
 
 const TransmitOptions = {
 	NotSet: 0,
@@ -120,12 +152,16 @@ export class UnformatLogEntry extends TransformStream<
 	UnformattedLogInfo
 > {
 	constructor() {
+		const normalizeTimestamp = createTimestampNormalizer();
 		const transformer: Transformer<string, UnformattedLogInfo> = {
 			transform(chunk, controller) {
 				const [firstLine, ...otherLines] = chunk.split("\n");
-				const timestamp = firstLine.match(TIMESTAMP_REGEX)?.[0];
-				if (!timestamp) return;
-				let restOfFirstLine = firstLine.slice(timestamp.length).trim();
+				const rawTimestamp = firstLine.match(TIMESTAMP_REGEX)?.[0];
+				if (!rawTimestamp) return;
+				const timestamp = normalizeTimestamp(rawTimestamp);
+				let restOfFirstLine = firstLine
+					.slice(rawTimestamp.length)
+					.trim();
 
 				// Find the log label, which is the first word after the timestamp
 				const labelEndIndex = restOfFirstLine.indexOf(" ");
@@ -171,7 +207,7 @@ export class UnformatLogEntry extends TransformStream<
 				}
 
 				// The rest of the first line, and the unindented remaining lines are the message
-				const indentation = timestamp.length + 1 + label.length + 3; // timestamp + label + direction arrows
+				const indentation = rawTimestamp.length + 1 + label.length + 3; // timestamp + label + direction arrows
 				const message = [
 					restOfFirstLine,
 					...otherLines.map((line) => line.slice(indentation)),
