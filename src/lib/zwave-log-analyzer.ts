@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { basename } from "node:path";
 import { LogTransformPipeline } from "./log-processor/index.js";
 import { GeminiLogAnalyzer, GEMINI_MODEL_ID } from "./ai/gemini-client.js";
 import { LogQueryEngine } from "./log-query-engine.js";
@@ -56,7 +57,11 @@ export class ZWaveLogAnalyzer {
 	): AsyncGenerator<string, void, unknown> {
 		try {
 			const logContent = await readFile(logFilePath, "utf8");
-			yield* this.analyzeLogContent(logContent, query);
+			yield* this.analyzeLogContent(
+				logContent,
+				query,
+				basename(logFilePath),
+			);
 		} catch (error) {
 			throw new Error(
 				`Failed to analyze log file: ${(error as Error).message}`,
@@ -70,16 +75,20 @@ export class ZWaveLogAnalyzer {
 	 *
 	 * @param logContent - The raw log content as a string
 	 * @param query - Question or instruction for the AI analysis
+	 * @param fileName - Name of the log file. A date in it is used for logs with time-only timestamps.
 	 * @returns AsyncGenerator that yields response chunks as they arrive
 	 */
 	async *analyzeLogContent(
 		logContent: string,
 		query: string,
+		fileName?: string,
 	): AsyncGenerator<string, void, unknown> {
 		try {
 			// Process the log content
-			const transformedLog =
-				await this.pipeline.processLogContent(logContent);
+			const transformedLog = await this.pipeline.processLogContent(
+				logContent,
+				fileName,
+			);
 
 			// Initialize the query engine for tool access
 			this.queryEngine = new LogQueryEngine(transformedLog);
