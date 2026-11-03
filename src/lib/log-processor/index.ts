@@ -11,31 +11,22 @@ const TIME_ONLY_REGEX = /^(\d{2}):(\d{2}):(\d{2})\.(\d{3})$/;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-const FILE_NAME_DATE_REGEXES: {
-	regex: RegExp;
-	groups: { year: number; month: number; day: number };
-}[] = [
+const FILE_NAME_DATE_REGEXES = [
 	// 2026-11-02, 2026_11_02, 2026.11.02, 20261102
-	{
-		regex: /(?<!\d)(\d{4})([-_.]?)(\d{2})\2(\d{2})(?!\d)/,
-		groups: { year: 1, month: 3, day: 4 },
-	},
+	/(?<!\d)(?<year>\d{4})(?<sep>[-_.]?)(?<month>\d{2})\k<sep>(?<day>\d{2})(?!\d)/,
 	// 02.11.2026
-	{
-		regex: /(?<!\d)(\d{2})\.(\d{2})\.(\d{4})(?!\d)/,
-		groups: { year: 3, month: 2, day: 1 },
-	},
+	/(?<!\d)(?<day>\d{2})\.(?<month>\d{2})\.(?<year>\d{4})(?!\d)/,
 ];
 
 /** Returns the first valid date in a file name as a UTC timestamp, if there is one */
 export function parseDateFromFileName(fileName: string): number | undefined {
-	for (const { regex, groups } of FILE_NAME_DATE_REGEXES) {
-		const match = fileName.match(regex);
-		if (!match) continue;
+	for (const regex of FILE_NAME_DATE_REGEXES) {
+		const groups = fileName.match(regex)?.groups;
+		if (!groups) continue;
 
-		const year = parseInt(match[groups.year], 10);
-		const month = parseInt(match[groups.month], 10);
-		const day = parseInt(match[groups.day], 10);
+		const year = parseInt(groups.year, 10);
+		const month = parseInt(groups.month, 10);
+		const day = parseInt(groups.day, 10);
 		const date = new Date(Date.UTC(year, month - 1, day));
 		// Date.UTC rolls over invalid values like month 13, so check them against the input
 		if (
