@@ -9,12 +9,60 @@ import { SemanticLogKind } from "../types.js";
 const TIMESTAMP_REGEX = /^(?:\d{4}-\d{2}-\d{2} )?\d{2}:\d{2}:\d{2}\.\d{3}/;
 const TIME_ONLY_REGEX = /^(\d{2}):(\d{2}):(\d{2})\.(\d{3})$/;
 
-// Logs with time-only timestamps get dates counting up from this day
-const PLACEHOLDER_DATE_UTC = Date.UTC(1970, 0, 1);
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-/** Adds placeholder dates to time-only timestamps, advancing the day at midnight */
-function createTimestampNormalizer(): (timestamp: string) => string {
+const FILE_NAME_DATE_REGEXES: {
+	regex: RegExp;
+	groups: { year: number; month: number; day: number };
+}[] = [
+	// 2026-11-02, 2026_11_02, 2026.11.02, 20261102
+	{
+		regex: /(?<!\d)(\d{4})([-_.]?)(\d{2})\2(\d{2})(?!\d)/,
+		groups: { year: 1, month: 3, day: 4 },
+	},
+	// 02.11.2026
+	{
+		regex: /(?<!\d)(\d{2})\.(\d{2})\.(\d{4})(?!\d)/,
+		groups: { year: 3, month: 2, day: 1 },
+	},
+];
+
+/** Returns the first valid date in a file name as a UTC timestamp, if there is one */
+export function parseDateFromFileName(fileName: string): number | undefined {
+	for (const { regex, groups } of FILE_NAME_DATE_REGEXES) {
+		const match = fileName.match(regex);
+		if (!match) continue;
+
+		const year = parseInt(match[groups.year], 10);
+		const month = parseInt(match[groups.month], 10);
+		const day = parseInt(match[groups.day], 10);
+		const date = new Date(Date.UTC(year, month - 1, day));
+		// Date.UTC rolls over invalid values like month 13, so check them against the input
+		if (
+			year >= 2000 &&
+			date.getUTCFullYear() === year &&
+			date.getUTCMonth() === month - 1 &&
+			date.getUTCDate() === day
+		) {
+			return date.getTime();
+		}
+	}
+}
+
+/** Returns today's local date as a UTC timestamp */
+function getToday(): number {
+	const now = new Date();
+	return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+/**
+ * Adds dates to time-only timestamps, advancing the day at midnight
+ *
+ * @param startDateUTC - The date of the first entry. Defaults to today.
+ */
+function createTimestampNormalizer(
+	startDateUTC: number = getToday(),
+): (timestamp: string) => string {
 	let dayOffset = 0;
 	let prevTimeOfDay: number | undefined;
 
@@ -33,7 +81,7 @@ function createTimestampNormalizer(): (timestamp: string) => string {
 		}
 		prevTimeOfDay = timeOfDay;
 
-		const date = new Date(PLACEHOLDER_DATE_UTC + dayOffset * MS_PER_DAY)
+		const date = new Date(startDateUTC + dayOffset * MS_PER_DAY)
 			.toISOString()
 			.slice(0, 10);
 		return `${date} ${timestamp}`;
@@ -151,8 +199,8 @@ export class UnformatLogEntry extends TransformStream<
 	string,
 	UnformattedLogInfo
 > {
-	constructor() {
-		const normalizeTimestamp = createTimestampNormalizer();
+	constructor(startDateUTC?: number) {
+		const normalizeTimestamp = createTimestampNormalizer(startDateUTC);
 		const transformer: Transformer<string, UnformattedLogInfo> = {
 			transform(chunk, controller) {
 				const [firstLine, ...otherLines] = chunk.split("\n");
@@ -1106,12 +1154,21 @@ export class AggregateBackgroundRSSI extends TransformStream<
 
 /** Main pipeline class that processes log content through all transform stages */
 export class LogTransformPipeline {
-	async processLogContent(logContent: string): Promise<SemanticLogInfo[]> {
+	/**
+	 * @param fileName - If the log has time-only timestamps, a date in this name is used as the date of the first entry.
+	 * Without one, the first entry is dated today.
+	 */
+	async processLogContent(
+		logContent: string,
+		fileName?: string,
+	): Promise<SemanticLogInfo[]> {
 		const entries: SemanticLogInfo[] = [];
 
 		// Create the transform pipeline
 		const completeLogEntries = new CompleteLogEntries();
-		const unformatLogEntry = new UnformatLogEntry();
+		const unformatLogEntry = new UnformatLogEntry(
+			fileName ? parseDateFromFileName(fileName) : undefined,
+		);
 		const parseNestedStructures = new ParseNestedStructures();
 		const filterLogEntries = new FilterLogEntries();
 		const classifyLogEntry = new ClassifyLogEntry();

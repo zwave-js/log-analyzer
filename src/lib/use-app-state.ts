@@ -166,7 +166,10 @@ export function useAppState() {
 
 				try {
 					const pipeline = new LogTransformPipeline();
-					const entries = await pipeline.processLogContent(content);
+					const entries = await pipeline.processLogContent(
+						content,
+						filename,
+					);
 
 					const transformedLog: TransformedLog = {
 						entries,

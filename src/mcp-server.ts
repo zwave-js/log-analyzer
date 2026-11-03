@@ -11,6 +11,7 @@ import {
 import { LogQueryEngine } from "./lib/log-query-engine.js";
 import { LogTransformPipeline } from "./lib/log-processor/index.js";
 import { readFile } from "node:fs/promises";
+import { basename } from "node:path";
 
 async function main() {
 	let queryEngine: LogQueryEngine | null = null;
@@ -32,7 +33,10 @@ async function main() {
 
 	async function loadLogFile(filePath: string): Promise<void> {
 		const logContent = await readFile(filePath, "utf-8");
-		const transformedEntries = await pipeline.processLogContent(logContent);
+		const transformedEntries = await pipeline.processLogContent(
+			logContent,
+			basename(filePath),
+		);
 		queryEngine = new LogQueryEngine(transformedEntries);
 	}
 
